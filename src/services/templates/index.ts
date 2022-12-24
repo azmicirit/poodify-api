@@ -1,0 +1,1 @@
+export { html as RegisterConfirmation } from './register.confirmation';

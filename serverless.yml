@@ -1,0 +1,64 @@
+service: poodify-api
+frameworkVersion: '3'
+
+plugins:
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  timeout: 30
+  stage: ${opt:stage, 'local'}
+  environment: ${file(./envs/env.${self:provider.stage, 'local'}.json)}
+  region: '${self:provider.environment.AWS_REGION_DEFAULT}'
+  vpc: ${self:custom.vpc.${self:provider.stage}, null}
+  memorySize: 1024
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 's3:*'
+        - 'ses:SendEmail'
+      Resource: '*'
+
+functions:
+  Api:
+    name: poodify-api
+    handler: build/index.Handler
+    environment: '${self:provider.environment}'
+    events:
+      - httpApi:
+          path: '/api/{any+}'
+          method: any
+  PrivateApi:
+    name: poodify-private-api
+    handler: build/index.PrivateHandler
+    environment: '${self:provider.environment}'
+    events:
+      - httpApi:
+          path: '/private/{any+}'
+          method: 'post'
+
+package:
+  exclude:
+    - node_modules/**
+    - layer/**
+    - envs/**
+    - scripts/**
+    - src/**
+
+layers:
+  modules:
+    package:
+      artifact: layer/layer.zip
+
+custom:
+  serverless-offline:
+    httpPort: 3002
+  vpc:
+    prod:
+      securityGroupIds:
+        - sg-03fa5d18b6e2d2988
+      subnetIds:
+        - subnet-014a51822944b3567
+        - subnet-076e7e26e69b7c23e
+        - subnet-0f9558e91f51b9e7b
