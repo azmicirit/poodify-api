@@ -26,8 +26,8 @@ export const Handler = async (event: APIGatewayProxyEventV2, context: Context): 
     const authResult = await new AuthService().CheckAuth(event);
     if (!authResult?.success) {
       return {
-        statusCode: 401,
-        body: JSON.stringify({ success: false, error: 'Forbidden' }),
+        statusCode: authResult?.errorCode || 500,
+        body: JSON.stringify({ success: false, error: authResult?.error || 'Fatal Error' }),
       };
     }
 
