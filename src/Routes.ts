@@ -1,12 +1,17 @@
 import { Context } from 'aws-lambda';
-import Api from './Api';
+import CompanyApi from './CompanyApi';
 import { Down, Up } from './seeds';
 import { CustomAPIEvent } from './types/Generic';
 
 export const ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, context: Context) => {} } } = {
-  '/test': {
+  '/company/save': {
     Func: async (event: CustomAPIEvent, context: Context) => {
-      return await new Api(event, context).Test();
+      return await new CompanyApi(event, context).CreateCompany();
+    },
+  },
+  '/company/get/all': {
+    Func: async (event: CustomAPIEvent, context: Context) => {
+      return await new CompanyApi(event, context).GetAllCompanies();
     },
   },
 };
@@ -33,6 +38,8 @@ export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, cont
   '/seed/up': {
     Func: async () => {
       try {
+        console.log('Heyyy lets up the process');
+        
         await Up();
 
         return {
