@@ -11,19 +11,18 @@ export default class Api extends Database {
 
   public async CreateCompany(): Promise<APIGatewayProxyResultV2> {
     try {
-      
       const city = await City.findOne({ code: this.event?.parsedBody?.cityId });
-      if(!city){
+      if (!city) {
         return {
           statusCode: 410,
-          body: JSON.stringify({ success: true, message:`"${this.event?.parsedBody?.cityId }" City Record not found!"` }),
+          body: JSON.stringify({ success: true, message: `"${this.event?.parsedBody?.cityId}" City Record not found!"` }),
         };
       }
       const currentRecord = await Company.findOne({ companyNumber: this.event?.parsedBody?.companyNumber });
-      if(currentRecord){
+      if (currentRecord) {
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, message:`"${this.event?.parsedBody?.companyNumber }" company has already been recorded!"` }),
+          body: JSON.stringify({ success: true, message: `"${this.event?.parsedBody?.companyNumber}" company has already been recorded!"` }),
         };
       }
       const company = new Company({
@@ -46,8 +45,8 @@ export default class Api extends Database {
         mailServerUserPort: this.event?.parsedBody?.mailServerUserPort || null,
         isMailServerHasVPN: this.event?.parsedBody?.isMailServerHasVPN || null,
         reporterEmail: this.event?.parsedBody?.reporterEmail || null,
-        createdBy:this.event?.parsedBody?.createdBy || null,
-        updatedBy:this.event?.parsedBody?.updatedBy || null,
+        createdBy: this.event?.parsedBody?.createdBy || null,
+        updatedBy: this.event?.parsedBody?.updatedBy || null,
       });
 
       await company.save();
@@ -56,31 +55,29 @@ export default class Api extends Database {
         statusCode: 200,
         body: JSON.stringify({ success: true, message: 'Company saved successfully!' }),
       };
-      
     } catch (error) {
-      console.log('CompanyApi.CreateCompany',error);
+      console.log('CompanyApi.CreateCompany', error);
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),
-      };  
+      };
     }
   }
 
   public async GetAllCompanies(): Promise<APIGatewayProxyResultV2> {
     try {
-      const company=await Company.find({});
+      const { user } = this.event;
+      const company = await Company.find({});
+
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true,body:company }),
+        body: JSON.stringify({ success: true, company, user }),
       };
-      
     } catch (error) {
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),
-      };  
+      };
     }
   }
-
-
 }

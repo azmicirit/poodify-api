@@ -2,6 +2,7 @@ import * as url from 'url';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { PRIVATE_ROUTES, ROUTES } from './Routes';
 import { CustomAPIEvent } from './types/Generic';
+import { AuthService } from './services/AuthService';
 
 const env = process.env;
 
@@ -21,8 +22,17 @@ export const Handler = async (event: APIGatewayProxyEventV2, context: Context): 
     const route = ROUTES[path];
     const customEvent: CustomAPIEvent = { ...event, parsedBody: event.body ? JSON.parse(event.body) : null };
 
+    // CHECK AUTH
+    const authResult = await new AuthService().CheckAuth(event);
+    if (!authResult?.success) {
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ success: false, error: 'Forbidden' }),
+      };
+    }
+
     return route
-      ? await route.Func(customEvent, context)
+      ? await route.Func({ ...customEvent, user: authResult.user }, context)
       : {
           statusCode: 301,
           headers: {
