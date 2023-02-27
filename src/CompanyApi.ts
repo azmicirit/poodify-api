@@ -4,12 +4,46 @@ import { CustomAPIEvent } from './types/Generic';
 import Company from './models/Company';
 import City from './models/City';
 
-export default class Api extends Database {
+export default class CompanyApi extends Database {
   constructor(event: CustomAPIEvent, context: Context) {
     super(event, context);
   }
 
-  public async CreateCompany(): Promise<APIGatewayProxyResultV2> {
+  public async GetList(): Promise<APIGatewayProxyResultV2> {
+    try {
+      const { user } = this.event;
+      const companies = await Company.find({});
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true, companies }),
+      };
+    } catch (error) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ success: false }),
+      };
+    }
+  }
+
+  public async GetOne(): Promise<APIGatewayProxyResultV2> {
+    try {
+      const { user } = this.event;
+      const company = await Company.findOne({});
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true, company }),
+      };
+    } catch (error) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ success: false }),
+      };
+    }
+  }
+
+  public async Create(): Promise<APIGatewayProxyResultV2> {
     try {
       const city = await City.findOne({ code: this.event?.parsedBody?.cityId });
       if (!city) {
@@ -53,7 +87,7 @@ export default class Api extends Database {
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, message: 'Company saved successfully!' }),
+        body: JSON.stringify({ success: true, company }),
       };
     } catch (error) {
       console.log('CompanyApi.CreateCompany', error);
@@ -64,14 +98,30 @@ export default class Api extends Database {
     }
   }
 
-  public async GetAllCompanies(): Promise<APIGatewayProxyResultV2> {
+  public async Update(): Promise<APIGatewayProxyResultV2> {
     try {
       const { user } = this.event;
-      const company = await Company.find({});
+      const company = await Company.findOneAndUpdate({});
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, company, user }),
+        body: JSON.stringify({ success: true, company }),
+      };
+    } catch (error) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ success: false }),
+      };
+    }
+  }
+  public async DeleteOne(): Promise<APIGatewayProxyResultV2> {
+    try {
+      const { user } = this.event;
+      const company = await Company.findOneAndDelete({});
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true, company }),
       };
     } catch (error) {
       return {

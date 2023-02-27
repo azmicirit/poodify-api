@@ -4,14 +4,29 @@ import { Down, Up } from './seeds';
 import { CustomAPIEvent } from './types/Generic';
 
 export const ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, context: Context) => {} } } = {
-  '/company/save': {
+  '/company/getList': {
     Func: async (event: CustomAPIEvent, context: Context) => {
-      return await new CompanyApi(event, context).CreateCompany();
+      return await new CompanyApi(event, context).GetList();
     },
   },
-  '/company/get/all': {
+  '/company/getOne': {
     Func: async (event: CustomAPIEvent, context: Context) => {
-      return await new CompanyApi(event, context).GetAllCompanies();
+      return await new CompanyApi(event, context).GetOne();
+    },
+  },
+  '/company/create': {
+    Func: async (event: CustomAPIEvent, context: Context) => {
+      return await new CompanyApi(event, context).Create();
+    },
+  },
+  '/company/update': {
+    Func: async (event: CustomAPIEvent, context: Context) => {
+      return await new CompanyApi(event, context).Update();
+    },
+  },
+  '/company/deleteOne': {
+    Func: async (event: CustomAPIEvent, context: Context) => {
+      return await new CompanyApi(event, context).DeleteOne();
     },
   },
 };
@@ -39,7 +54,7 @@ export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, cont
     Func: async () => {
       try {
         console.log('Heyyy lets up the process');
-        
+
         await Up();
 
         return {
