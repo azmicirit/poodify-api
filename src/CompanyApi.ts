@@ -1,8 +1,9 @@
 import { APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import Database from './helpers/Database';
-import { CustomAPIEvent } from './types/Generic';
+import { CustomAPIEvent, LogicalFilter } from './types/Generic';
 import Company from './models/Company';
 import City from './models/City';
+import { FilterQueryBuilder } from './helpers/FilterQueryBuilder';
 
 export default class CompanyApi extends Database {
   constructor(event: CustomAPIEvent, context: Context) {
@@ -11,14 +12,26 @@ export default class CompanyApi extends Database {
 
   public async GetList(): Promise<APIGatewayProxyResultV2> {
     try {
-      const { user } = this.event;
-      const companies = await Company.find({});
+      const { user, parsedBody } = this.event;
+      const filters = parsedBody?.filters;
+      const current = parsedBody?.pagination?.current || 1;
+      const pageSize = parsedBody?.pagination?.pageSize || 10;
+      const companies = await Company.find({ ...FilterQueryBuilder.RefineFilterParser(filters) }, {}, { skip: (current - 1) * 10, limit: pageSize });
+      const parsedCompanies = companies?.map((company: any) => {
+        return {
+          id: company._id?.toString(),
+          ...company._doc,
+        };
+      });
+      const total = await Company.count({});
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, companies }),
+        body: JSON.stringify({ success: true, companies: parsedCompanies, total }),
       };
     } catch (error) {
+      console.error(error);
+
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),

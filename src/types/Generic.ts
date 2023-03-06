@@ -1,5 +1,4 @@
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
-
 interface User {
   _id: string;
   forenames: string;
@@ -35,3 +34,37 @@ export interface CheckAuthResult extends GenericResult {
     };
   };
 }
+
+export type CrudOperators =
+  | 'eq'
+  | 'ne'
+  | 'lt'
+  | 'gt'
+  | 'lte'
+  | 'gte'
+  | 'in'
+  | 'nin'
+  | 'contains'
+  | 'ncontains'
+  | 'containss'
+  | 'ncontainss'
+  | 'between'
+  | 'nbetween'
+  | 'null'
+  | 'nnull'
+  | 'startswith'
+  | 'nstartswith'
+  | 'startswiths'
+  | 'nstartswiths'
+  | 'endswith'
+  | 'nendswith'
+  | 'endswiths'
+  | 'nendswiths'
+  | 'or'
+  | 'and';
+
+export type LogicalFilter = {
+  field: string;
+  operator: Exclude<CrudOperators, 'or' | 'and'>;
+  value: any;
+};
