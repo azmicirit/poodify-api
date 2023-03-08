@@ -1,9 +1,11 @@
+import mongoose, { ClientSession } from 'mongoose';
 import { APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import Database from './helpers/Database';
 import { CustomAPIEvent, LogicalFilter } from './types/Generic';
 import Company from './models/Company';
 import City from './models/City';
 import { FilterQueryBuilder } from './helpers/FilterQueryBuilder';
+import CompanyUser from './models/CompanyUser';
 
 export default class CompanyApi extends Database {
   constructor(event: CustomAPIEvent, context: Context) {
@@ -16,18 +18,26 @@ export default class CompanyApi extends Database {
       const filters = parsedBody?.filters;
       const current = parsedBody?.pagination?.current || 1;
       const pageSize = parsedBody?.pagination?.pageSize || 10;
-      const companies = await Company.find({ ...FilterQueryBuilder.RefineFilterParser(filters) }, {}, { skip: (current - 1) * 10, limit: pageSize });
+
+      const companyUsers = await CompanyUser.find({ userId: user._id }).select('companyId');
+      const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
+      const companies = await Company.find(
+        { ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) },
+        {},
+        { skip: (current - 1) * 10, limit: pageSize }
+      ).populate('city');
       const parsedCompanies = companies?.map((company: any) => {
         return {
-          id: company._id?.toString(),
           ...company._doc,
+          city: company?.$$populatedVirtuals?.city,
+          id: company._id?.toString(),
         };
       });
       const total = await Company.count({});
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, companies: parsedCompanies, total }),
+        body: JSON.stringify({ success: true, companies: parsedCompanies, total: parsedCompanies?.length >= pageSize ? total : parsedCompanies?.length }),
       };
     } catch (error) {
       console.error(error);
@@ -56,22 +66,30 @@ export default class CompanyApi extends Database {
     }
   }
 
+  // ERROR CODES
+  // 2001 (404) City Not Found
+  // 2002 (409) Company Already Taken
   public async Create(): Promise<APIGatewayProxyResultV2> {
+    const session: ClientSession = await mongoose.startSession();
+
     try {
+      const { user } = this.event;
+
       const city = await City.findOne({ code: this.event?.parsedBody?.cityId });
       if (!city) {
         return {
-          statusCode: 410,
-          body: JSON.stringify({ success: true, message: `"${this.event?.parsedBody?.cityId}" City Record not found!"` }),
+          statusCode: 404,
+          body: JSON.stringify({ success: true, ecode: 2001, message: `"${this.event?.parsedBody?.cityId}" City Record not found!"` }),
         };
       }
       const currentRecord = await Company.findOne({ companyNumber: this.event?.parsedBody?.companyNumber });
       if (currentRecord) {
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, message: `"${this.event?.parsedBody?.companyNumber}" company has already been recorded!"` }),
+          body: JSON.stringify({ success: true, ecode: 2002, message: `"${this.event?.parsedBody?.companyNumber}" company has already been recorded!"` }),
         };
       }
+
       const company = new Company({
         name: this.event?.parsedBody?.name || null,
         companyNumber: this.event?.parsedBody?.companyNumber || null,
@@ -98,11 +116,23 @@ export default class CompanyApi extends Database {
 
       await company.save();
 
+      const companyUser = await new CompanyUser({
+        companyId: company._id,
+        userId: user._id,
+        active: true,
+        createdBy: user.email,
+        updatedBy: user.email,
+      });
+
+      companyUser.save();
+
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true, company }),
       };
     } catch (error) {
+      await session.abortTransaction();
+
       console.log('CompanyApi.CreateCompany', error);
       return {
         statusCode: 404,

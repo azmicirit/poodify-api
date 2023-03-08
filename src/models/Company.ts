@@ -10,7 +10,9 @@ export interface ICompany {
   userCount: number;
   country: string;
   cityId: PopulatedDoc<ICity>;
-  townId: PopulatedDoc<ITown>;
+  townId: PopulatedDoc<ICity>;
+  city?: ICity;
+  town?: ITown;
   addressText: string;
   postCode: string;
   houseNumber: number;
@@ -58,12 +60,20 @@ const CompanySchema = new Schema<ICompany, ICompanyModel>(
     reporterEmail: { type: String, required: false, maxlength: 32 },
     createdBy: { type: String, required: true, maxlength: 64 },
     updatedBy: { type: String, required: true, maxlength: 64 },
-    createdAt: { type: Date, required: false },
-    updatedAt: { type: Date, required: false },
   },
   {
     timestamps: true,
   }
 );
+
+CompanySchema.virtual('city', {
+  ref: 'cities',
+  localField: 'cityId',
+  foreignField: '_id',
+  justOne: true,
+});
+
+CompanySchema.set('toObject', { virtuals: true });
+CompanySchema.set('toJSON', { virtuals: true });
 
 export default model<ICompany, ICompanyModel>('companies', CompanySchema);
