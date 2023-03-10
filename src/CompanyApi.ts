@@ -1,10 +1,9 @@
 import mongoose, { ClientSession } from 'mongoose';
 import { APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import Database from './helpers/Database';
-import { CustomAPIEvent, LogicalFilter } from './types/Generic';
+import { CustomAPIEvent } from './types/Generic';
 import Company from './models/Company';
 import City from './models/City';
-import { FilterQueryBuilder } from './helpers/FilterQueryBuilder';
 import CompanyUser from './models/CompanyUser';
 
 export default class CompanyApi extends Database {
@@ -19,25 +18,11 @@ export default class CompanyApi extends Database {
       const current = parsedBody?.pagination?.current || 1;
       const pageSize = parsedBody?.pagination?.pageSize || 10;
 
-      const companyUsers = await CompanyUser.find({ userId: user._id }).select('companyId');
-      const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-      const companies = await Company.find(
-        { ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) },
-        {},
-        { skip: (current - 1) * 10, limit: pageSize }
-      ).populate('city');
-      const parsedCompanies = companies?.map((company: any) => {
-        return {
-          ...company._doc,
-          city: company?.$$populatedVirtuals?.city,
-          id: company._id?.toString(),
-        };
-      });
-      const total = await Company.count({});
+      const result = await Company.getCompaniesByUser(user._id?.toString(), filters, current, pageSize);
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, companies: parsedCompanies, total: parsedCompanies?.length >= pageSize ? total : parsedCompanies?.length }),
+        body: JSON.stringify({ success: true, companies: result.list, total: result.size }),
       };
     } catch (error) {
       console.error(error);

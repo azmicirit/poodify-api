@@ -1,5 +1,7 @@
 import { Schema, model, PopulatedDoc, Model } from 'mongoose';
+import { FilterQueryBuilder } from '../helpers/FilterQueryBuilder';
 import { ICity } from './City';
+import CompanyUser from './CompanyUser';
 import { ITown } from './Town';
 
 export interface ICompany {
@@ -33,9 +35,18 @@ export interface ICompany {
   updatedAt: Date;
 }
 
+export interface CompanyListResult {
+  list: ICompany[];
+  size: number;
+}
+
 type ICompanyModel = Model<ICompany, {}>;
 
-const CompanySchema = new Schema<ICompany, ICompanyModel>(
+interface CompanyModel extends Model<ICompany> {
+  getCompaniesByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
+}
+
+const companySchema = new Schema<ICompany, CompanyModel>(
   {
     name: { type: String, required: true, maxlength: 256, index: true },
     companyNumber: { type: String, required: true, maxlength: 128, unique: true, index: true },
@@ -63,17 +74,42 @@ const CompanySchema = new Schema<ICompany, ICompanyModel>(
   },
   {
     timestamps: true,
+    toObject: {
+      transform: function (doc, ret) {
+        doc.id = doc._id?.toString();
+      },
+    },
   }
 );
 
-CompanySchema.virtual('city', {
+companySchema.static('getCompaniesByUser', async function (userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null> {
+  try {
+    current = current || 0;
+    pageSize = pageSize || 10;
+
+    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
+    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
+    const companies = await this.find({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
+      .populate('city')
+      .exec();
+
+    return {
+      list: companies,
+      size: companyIds?.length || 0,
+    };
+  } catch (error) {
+    return null;
+  }
+});
+
+companySchema.virtual('city', {
   ref: 'cities',
   localField: 'cityId',
   foreignField: '_id',
   justOne: true,
 });
 
-CompanySchema.set('toObject', { virtuals: true });
-CompanySchema.set('toJSON', { virtuals: true });
+companySchema.set('toObject', { virtuals: true });
+companySchema.set('toJSON', { virtuals: true });
 
-export default model<ICompany, ICompanyModel>('companies', CompanySchema);
+export default model<ICompany, CompanyModel>('companies', companySchema);
