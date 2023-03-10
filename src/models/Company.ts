@@ -17,7 +17,7 @@ export interface ICompany {
   town?: ITown;
   addressText: string;
   postCode: string;
-  houseNumber: number;
+  houseNumber: string;
   email: string;
   mobile: string;
   phone: string;
@@ -53,15 +53,15 @@ const companySchema = new Schema<ICompany, CompanyModel>(
     taxOffice: { type: String, required: false, maxlength: 128 },
     userCount: { type: Number, required: true, default: 1 },
     country: { type: String, required: true, maxlength: 3 },
-    cityId: { type: Schema.Types.ObjectId, required: false, ref: 'cities' },
-    townId: { type: Schema.Types.ObjectId, required: false, ref: 'towns' },
+    cityId: { type: Schema.Types.ObjectId, required: true, ref: 'cities' },
+    townId: { type: Schema.Types.ObjectId, required: false, default: null, ref: 'towns' },
     addressText: { type: String, required: false, maxlength: 512 },
     postCode: { type: String, required: true, maxlength: 16 },
-    houseNumber: { type: Number, required: true },
+    houseNumber: { type: String, required: true },
     email: { type: String, required: true },
     mobile: { type: String, required: true, maxlength: 16 },
-    phone: { type: String, required: true, maxlength: 16 },
-    webSite: { type: String, required: true, maxlength: 32 },
+    phone: { type: String, required: false, maxlength: 16 },
+    webSite: { type: String, required: false, maxlength: 32 },
     isActive: { type: Boolean, required: true, default: true },
     mailServer: { type: String, required: false, maxlength: 32 },
     mailServerUserName: { type: String, required: false, maxlength: 32 },

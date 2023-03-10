@@ -5,6 +5,7 @@ import { CustomAPIEvent } from './types/Generic';
 import Company from './models/Company';
 import City from './models/City';
 import CompanyUser from './models/CompanyUser';
+import Town from './models/Town';
 
 export default class CompanyApi extends Database {
   constructor(event: CustomAPIEvent, context: Context) {
@@ -67,6 +68,7 @@ export default class CompanyApi extends Database {
           body: JSON.stringify({ success: true, ecode: 2001, message: `"${this.event?.parsedBody?.cityId}" City Record not found!"` }),
         };
       }
+      const town = await Town.findOne({ code: this.event?.parsedBody?.townId });
       const currentRecord = await Company.findOne({ companyNumber: this.event?.parsedBody?.companyNumber });
       if (currentRecord) {
         return {
@@ -75,28 +77,30 @@ export default class CompanyApi extends Database {
         };
       }
 
+      await session.startTransaction();
+
       const company = new Company({
         name: this.event?.parsedBody?.name || null,
         companyNumber: this.event?.parsedBody?.companyNumber || null,
         taxOffice: this.event?.parsedBody?.taxOffice || null,
         country: this.event?.parsedBody?.country || null,
         cityId: city._id || null,
-        townId: this.event?.parsedBody?.townId || null,
+        townId: town ? town._id : undefined,
         postCode: this.event?.parsedBody?.postCode || null,
         houseNumber: this.event?.parsedBody?.houseNumber || null,
         email: this.event?.parsedBody?.email || null,
         mobile: this.event?.parsedBody?.mobile || null,
         phone: this.event?.parsedBody?.phone || null,
         webSite: this.event?.parsedBody?.webSite || null,
-        isActive: this.event?.parsedBody?.isActive || null,
+        isActive: true,
         mailServer: this.event?.parsedBody?.mailServer || null,
         mailServerUserName: this.event?.parsedBody?.mailServerUserName || null,
         mailServerPassword: this.event?.parsedBody?.mailServerPassword || null,
         mailServerUserPort: this.event?.parsedBody?.mailServerUserPort || null,
         isMailServerHasVPN: this.event?.parsedBody?.isMailServerHasVPN || null,
         reporterEmail: this.event?.parsedBody?.reporterEmail || null,
-        createdBy: this.event?.parsedBody?.createdBy || null,
-        updatedBy: this.event?.parsedBody?.updatedBy || null,
+        createdBy: user.email,
+        updatedBy: user.email,
       });
 
       await company.save();
@@ -111,6 +115,8 @@ export default class CompanyApi extends Database {
 
       companyUser.save();
 
+      await session.commitTransaction();
+
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true, company }),
@@ -121,8 +127,10 @@ export default class CompanyApi extends Database {
       console.log('CompanyApi.CreateCompany', error);
       return {
         statusCode: 404,
-        body: JSON.stringify({ success: false }),
+        body: JSON.stringify({ success: false, error: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
       };
+    } finally {
+      session.endSession();
     }
   }
 
