@@ -12,12 +12,7 @@ export interface IMailServer {
   isMailServerHasVPN: boolean;
 }
 
-export interface ICompany {
-  _id: string;
-  name: string;
-  companyNumber: string;
-  taxOffice: string;
-  userCount: number;
+export interface IAddress {
   country: string;
   cityId: PopulatedDoc<ICity>;
   townId: PopulatedDoc<ICity>;
@@ -26,6 +21,15 @@ export interface ICompany {
   addressText: string;
   postCode: string;
   houseNumber: string;
+}
+
+export interface ICompany {
+  _id: string;
+  name: string;
+  companyNumber: string;
+  taxOffice: string;
+  userCount: number;
+  address: [IAddress];
   email: string;
   mobile: string;
   phone: string;
@@ -33,6 +37,10 @@ export interface ICompany {
   isActive: boolean;
   mailServer: IMailServer;
   reporterEmail: string;
+  logo: {
+    url: string;
+    thumbnail?: string;
+  };
   createdBy: string;
   updatedBy: string;
   createdAt: Date;
@@ -56,25 +64,43 @@ const companySchema = new Schema<ICompany, CompanyModel>(
     companyNumber: { type: String, required: true, maxlength: 128, unique: true, index: true },
     taxOffice: { type: String, required: false, maxlength: 128 },
     userCount: { type: Number, required: true, default: 1 },
-    country: { type: String, required: true, maxlength: 3 },
-    cityId: { type: Schema.Types.ObjectId, required: true, ref: 'cities' },
-    townId: { type: Schema.Types.ObjectId, required: false, default: null, ref: 'towns' },
-    addressText: { type: String, required: false, maxlength: 512 },
-    postCode: { type: String, required: true, maxlength: 16 },
-    houseNumber: { type: String, required: true },
+    address: [
+      {
+        type: {
+          country: { type: String, required: true, maxlength: 3 },
+          cityId: { type: Schema.Types.ObjectId, required: true, ref: 'cities' },
+          townId: { type: Schema.Types.ObjectId, required: false, default: null, ref: 'towns' },
+          addressText: { type: String, required: false, maxlength: 512 },
+          postCode: { type: String, required: true, maxlength: 16 },
+          houseNumber: { type: String, required: true },
+        },
+        required: false,
+        default: { houseNumber: null, description: null, postCode: null, country: null },
+      },
+    ],
     email: { type: String, required: true },
     mobile: { type: String, required: true, maxlength: 16 },
     phone: { type: String, required: false, maxlength: 16 },
     webSite: { type: String, required: false, maxlength: 32 },
     isActive: { type: Boolean, required: true, default: true },
     mailServer: {
-      mailServerName: { type: String, required: false, maxlength: 32 },
-      mailServerUserName: { type: String, required: false, maxlength: 32 },
-      mailServerPassword: { type: String, required: false, maxlength: 32 },
-      mailServerUserPort: { type: Number, required: false },
-      isMailServerHasVPN: { type: Boolean, required: false, default: true },
+      type: {
+        mailServerName: { type: String, required: false, maxlength: 32 },
+        mailServerUserName: { type: String, required: false, maxlength: 32 },
+        mailServerPassword: { type: String, required: false, maxlength: 32 },
+        mailServerUserPort: { type: Number, required: false },
+        isMailServerHasVPN: { type: Boolean, required: false, default: true },
+      },
+      default: { mailServerName: null, mailServerUserName: null, mailServerPassword: null, mailServerUserPort: null, isMailServerHasVPN: null },
     },
     reporterEmail: { type: String, required: false, maxlength: 32 },
+    logo: {
+      type: {
+        url: { type: String, required: false },
+        thumbnail: { type: String, required: false },
+      },
+      default: { url: null, thumbnail: null },
+    },
     createdBy: { type: String, required: true, maxlength: 64 },
     updatedBy: { type: String, required: true, maxlength: 64 },
   },
