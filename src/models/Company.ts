@@ -4,6 +4,14 @@ import { ICity } from './City';
 import CompanyUser from './CompanyUser';
 import { ITown } from './Town';
 
+export interface IMailServer {
+  mailServerName: string;
+  mailServerUserName: string;
+  mailServerPassword: string;
+  mailServerUserPort: number;
+  isMailServerHasVPN: boolean;
+}
+
 export interface ICompany {
   _id: string;
   name: string;
@@ -23,11 +31,7 @@ export interface ICompany {
   phone: string;
   webSite: string;
   isActive: boolean;
-  mailServer: string;
-  mailServerUserName: string;
-  mailServerPassword: string;
-  mailServerUserPort: number;
-  isMailServerHasVPN: boolean;
+  mailServer: IMailServer;
   reporterEmail: string;
   createdBy: string;
   updatedBy: string;
@@ -63,11 +67,13 @@ const companySchema = new Schema<ICompany, CompanyModel>(
     phone: { type: String, required: false, maxlength: 16 },
     webSite: { type: String, required: false, maxlength: 32 },
     isActive: { type: Boolean, required: true, default: true },
-    mailServer: { type: String, required: false, maxlength: 32 },
-    mailServerUserName: { type: String, required: false, maxlength: 32 },
-    mailServerPassword: { type: String, required: false, maxlength: 32 },
-    mailServerUserPort: { type: Number, required: false },
-    isMailServerHasVPN: { type: Boolean, required: false, default: true },
+    mailServer: {
+      mailServerName: { type: String, required: false, maxlength: 32 },
+      mailServerUserName: { type: String, required: false, maxlength: 32 },
+      mailServerPassword: { type: String, required: false, maxlength: 32 },
+      mailServerUserPort: { type: Number, required: false },
+      isMailServerHasVPN: { type: Boolean, required: false, default: true },
+    },
     reporterEmail: { type: String, required: false, maxlength: 32 },
     createdBy: { type: String, required: true, maxlength: 64 },
     updatedBy: { type: String, required: true, maxlength: 64 },
