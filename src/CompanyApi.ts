@@ -37,12 +37,16 @@ export default class CompanyApi extends Database {
 
   public async GetOne(): Promise<APIGatewayProxyResultV2> {
     try {
-      const { user } = this.event;
-      const company = await Company.findOne({});
+      const { user, parsedBody } = this.event;
+      const filters = parsedBody?.filters;
+      const current = parsedBody?.pagination?.current || 1;
+      const pageSize = parsedBody?.pagination?.pageSize || 10;
+
+      const result = await Company.getCompanyByUser(user._id?.toString(), filters, current, pageSize);
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, company }),
+        body: JSON.stringify({ success: true, company: result.list, total: result.size }),
       };
     } catch (error) {
       return {
@@ -60,8 +64,8 @@ export default class CompanyApi extends Database {
 
     try {
       const { user } = this.event;
-
       const city = await City.findOne({ code: this.event?.parsedBody?.cityId });
+
       if (!city) {
         return {
           statusCode: 404,
@@ -136,12 +140,42 @@ export default class CompanyApi extends Database {
 
   public async Update(): Promise<APIGatewayProxyResultV2> {
     try {
-      const { user } = this.event;
-      const company = await Company.findOneAndUpdate({});
+      const { user, parsedBody } = this.event;
+
+      await Company.findOneAndUpdate(
+        { _id: parsedBody?._id },
+        {
+          $set: {
+            name: this.event?.parsedBody?.name || null,
+            companyNumber: this.event?.parsedBody?.companyNumber || null,
+            taxOffice: this.event?.parsedBody?.taxOffice || null,
+            address:[ {
+              country: this.event?.parsedBody?.address?.country || null,
+              cityId: this.event?.parsedBody?.address?.cityId || null,
+              townId: this.event?.parsedBody?.address?.townId || null,
+              postCode: this.event?.parsedBody?.address?.postCode || null,
+              houseNumber: this.event?.parsedBody?.address?.houseNumber || null,
+              addressText:this.event?.parsedBody?.address?.addressText || null,
+            }],
+            email: this.event?.parsedBody?.email || null,
+            mobile: this.event?.parsedBody?.mobile || null,
+            phone: this.event?.parsedBody?.phone || null,
+            webSite: this.event?.parsedBody?.webSite || null,
+            isActive: this.event?.parsedBody?.isActive,
+            mailServer: this.event?.parsedBody?.mailServer || null,
+            mailServerUserName: this.event?.parsedBody?.mailServerUserName || null,
+            mailServerPassword: this.event?.parsedBody?.mailServerPassword || null,
+            mailServerUserPort: this.event?.parsedBody?.mailServerUserPort || null,
+            isMailServerHasVPN: this.event?.parsedBody?.isMailServerHasVPN || null,
+            reporterEmail: this.event?.parsedBody?.reporterEmail || null,
+            updatedBy: user.email,
+          },
+        }
+      );
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, company }),
+        body: JSON.stringify({ success: true }),
       };
     } catch (error) {
       return {

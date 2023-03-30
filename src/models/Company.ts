@@ -23,6 +23,19 @@ export interface IAddress {
   houseNumber: string;
 }
 
+enum PhoneType {
+  Mobile = 1,
+  Home,
+  Office,
+  Fax,
+}
+
+export interface IPhone{
+countyCode:Number,
+phoneType:PhoneType,
+number:string
+}
+
 export interface ICompany {
   _id: string;
   name: string;
@@ -30,9 +43,8 @@ export interface ICompany {
   taxOffice: string;
   userCount: number;
   address: [IAddress];
-  email: string;
-  mobile: string;
-  phone: string;
+  email: [string];
+  phone: [IPhone];
   webSite: string;
   isActive: boolean;
   mailServer: IMailServer;
@@ -56,6 +68,7 @@ type ICompanyModel = Model<ICompany, {}>;
 
 interface CompanyModel extends Model<ICompany> {
   getCompaniesByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
+  getCompanyByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
 }
 
 const companySchema = new Schema<ICompany, CompanyModel>(
@@ -78,10 +91,8 @@ const companySchema = new Schema<ICompany, CompanyModel>(
         default: { houseNumber: null, description: null, postCode: null, country: null },
       },
     ],
-    email: { type: String, required: true },
-    mobile: { type: String, required: true, maxlength: 16 },
-    phone: { type: String, required: false, maxlength: 16 },
-    webSite: { type: String, required: false, maxlength: 32 },
+    email: [{ type: String, required: true }],
+    phone: [{ type: String, required: false, maxlength: 16 }],
     isActive: { type: Boolean, required: true, default: true },
     mailServer: {
       type: {
@@ -127,6 +138,26 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
 
     return {
       list: companies,
+      size: companyIds?.length || 0,
+    };
+  } catch (error) {
+    return null;
+  }
+});
+
+companySchema.static('getCompanyByUser', async function (userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null> {
+  try {
+    current = current || 0;
+    pageSize = pageSize || 10;
+
+    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
+    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
+    const company = await this.findOne({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
+      .populate('city')
+      .exec();
+
+    return {
+      list: [company],
       size: companyIds?.length || 0,
     };
   } catch (error) {
