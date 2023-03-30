@@ -5,19 +5,17 @@ import CompanyUser from './CompanyUser';
 import { ITown } from './Town';
 
 export interface IMailServer {
-  mailServerName: string;
+  mailServerEndpoint: string;
   mailServerUserName: string;
   mailServerPassword: string;
-  mailServerUserPort: number;
+  mailServerPort: number;
   isMailServerHasVPN: boolean;
 }
 
 export interface IAddress {
   country: string;
-  cityId: PopulatedDoc<ICity>;
-  townId: PopulatedDoc<ICity>;
-  city?: ICity;
-  town?: ITown;
+  city: PopulatedDoc<ICity>;
+  town?: PopulatedDoc<ITown>;
   addressText: string;
   postCode: string;
   houseNumber: string;
@@ -25,15 +23,15 @@ export interface IAddress {
 
 enum PhoneType {
   Mobile = 1,
-  Home,
-  Office,
-  Fax,
+  Home = 2,
+  Office = 3,
+  Fax = 4,
 }
 
-export interface IPhone{
-countyCode:Number,
-phoneType:PhoneType,
-number:string
+export interface IPhone {
+  countryCode: number;
+  phoneType: PhoneType;
+  number: string;
 }
 
 export interface ICompany {
@@ -42,9 +40,9 @@ export interface ICompany {
   companyNumber: string;
   taxOffice: string;
   userCount: number;
-  address: [IAddress];
-  email: [string];
-  phone: [IPhone];
+  addresses: [IAddress];
+  emails: [string];
+  phones: [IPhone];
   webSite: string;
   isActive: boolean;
   mailServer: IMailServer;
@@ -67,6 +65,7 @@ export interface CompanyListResult {
 type ICompanyModel = Model<ICompany, {}>;
 
 interface CompanyModel extends Model<ICompany> {
+  isCompanyBelongsToUser(userId: string, companyId: string): Promise<boolean>;
   getCompaniesByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
   getCompanyByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
 }
@@ -77,12 +76,12 @@ const companySchema = new Schema<ICompany, CompanyModel>(
     companyNumber: { type: String, required: true, maxlength: 128, unique: true, index: true },
     taxOffice: { type: String, required: false, maxlength: 128 },
     userCount: { type: Number, required: true, default: 1 },
-    address: [
+    addresses: [
       {
         type: {
           country: { type: String, required: true, maxlength: 3 },
-          cityId: { type: Schema.Types.ObjectId, required: true, ref: 'cities' },
-          townId: { type: Schema.Types.ObjectId, required: false, default: null, ref: 'towns' },
+          city: { type: Schema.Types.ObjectId, required: true, ref: 'cities' },
+          town: { type: Schema.Types.ObjectId, required: false, default: null, ref: 'towns' },
           addressText: { type: String, required: false, maxlength: 512 },
           postCode: { type: String, required: true, maxlength: 16 },
           houseNumber: { type: String, required: true },
@@ -91,18 +90,18 @@ const companySchema = new Schema<ICompany, CompanyModel>(
         default: { houseNumber: null, description: null, postCode: null, country: null },
       },
     ],
-    email: [{ type: String, required: true }],
-    phone: [{ type: String, required: false, maxlength: 16 }],
+    emails: [{ type: String, required: true }],
+    phones: [{ type: String, required: false, maxlength: 16 }],
     isActive: { type: Boolean, required: true, default: true },
     mailServer: {
       type: {
-        mailServerName: { type: String, required: false, maxlength: 32 },
+        mailServerEndpoint: { type: String, required: false, maxlength: 32 },
         mailServerUserName: { type: String, required: false, maxlength: 32 },
         mailServerPassword: { type: String, required: false, maxlength: 32 },
-        mailServerUserPort: { type: Number, required: false },
+        mailServerPort: { type: Number, required: false },
         isMailServerHasVPN: { type: Boolean, required: false, default: true },
       },
-      default: { mailServerName: null, mailServerUserName: null, mailServerPassword: null, mailServerUserPort: null, isMailServerHasVPN: null },
+      default: { mailServerName: null, mailServerUserName: null, mailServerPassword: null, mailServerPort: null, isMailServerHasVPN: null },
     },
     reporterEmail: { type: String, required: false, maxlength: 32 },
     logo: {
@@ -125,6 +124,17 @@ const companySchema = new Schema<ICompany, CompanyModel>(
   }
 );
 
+companySchema.static('isCompanyBelongsToUser', async function (userId: string, companyId: string): Promise<boolean> {
+  try {
+    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
+    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());
+    
+    return companyIds.indexOf(companyId) > -1 ? true : false;
+  } catch (error) {
+    return false;
+  }
+});
+
 companySchema.static('getCompaniesByUser', async function (userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null> {
   try {
     current = current || 0;
@@ -133,7 +143,7 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
     const companies = await this.find({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
-      .populate('city')
+      .populate('addresses.city')
       .exec();
 
     return {
@@ -153,7 +163,7 @@ companySchema.static('getCompanyByUser', async function (userId: string, filters
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
     const company = await this.findOne({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
-      .populate('city')
+      .populate('addresses.city')
       .exec();
 
     return {
@@ -163,13 +173,6 @@ companySchema.static('getCompanyByUser', async function (userId: string, filters
   } catch (error) {
     return null;
   }
-});
-
-companySchema.virtual('city', {
-  ref: 'cities',
-  localField: 'cityId',
-  foreignField: '_id',
-  justOne: true,
 });
 
 companySchema.set('toObject', { virtuals: true });

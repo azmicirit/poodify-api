@@ -23,10 +23,10 @@ export default class CompanyApi extends Database {
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, companies: result.list, total: result.size }),
+        body: JSON.stringify({ success: true, companies: result?.list || [], total: result?.size || 0 }),
       };
     } catch (error) {
-      console.error(error);
+      console.error('CompanyApi.GetList', error);
 
       return {
         statusCode: 404,
@@ -49,6 +49,8 @@ export default class CompanyApi extends Database {
         body: JSON.stringify({ success: true, company: result.list, total: result.size }),
       };
     } catch (error) {
+      console.error('CompanyApi.GetOne', error);
+
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),
@@ -61,48 +63,56 @@ export default class CompanyApi extends Database {
   // 2002 (409) Company Already Taken
   public async Create(): Promise<APIGatewayProxyResultV2> {
     const session: ClientSession = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-      const { user } = this.event;
-      const city = await City.findOne({ code: this.event?.parsedBody?.cityId });
+      const { user, parsedBody } = this.event;
 
+      const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city });
       if (!city) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2001, message: `"${this.event?.parsedBody?.cityId}" City Record not found!"` }),
+          body: JSON.stringify({ success: true, ecode: 2001, message: `City Record not found!` }),
         };
       }
-      const town = await Town.findOne({ code: this.event?.parsedBody?.townId });
-      const currentRecord = await Company.findOne({ companyNumber: this.event?.parsedBody?.companyNumber });
+
+      const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
+
+      const currentRecord = await Company.findOne({ companyNumber: parsedBody?.companyNumber });
       if (currentRecord) {
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 2002, message: `"${this.event?.parsedBody?.companyNumber}" company has already been recorded!"` }),
+          body: JSON.stringify({ success: true, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
         };
       }
-
-      await session.startTransaction();
+      console.log();
 
       const company = new Company({
-        name: this.event?.parsedBody?.name || null,
-        companyNumber: this.event?.parsedBody?.companyNumber || null,
-        taxOffice: this.event?.parsedBody?.taxOffice || null,
-        country: this.event?.parsedBody?.country || null,
-        cityId: city._id || null,
-        townId: town ? town._id : undefined,
-        postCode: this.event?.parsedBody?.postCode || null,
-        houseNumber: this.event?.parsedBody?.houseNumber || null,
-        email: this.event?.parsedBody?.email || null,
-        mobile: this.event?.parsedBody?.mobile || null,
-        phone: this.event?.parsedBody?.phone || null,
-        webSite: this.event?.parsedBody?.webSite || null,
+        name: parsedBody?.name || null,
+        companyNumber: parsedBody?.companyNumber || null,
+        taxOffice: parsedBody?.taxOffice || null,
+        addresses: [
+          {
+            country: parsedBody?.addresses?.[0]?.country || null,
+            city: city?._id || null,
+            town: town?._id || null,
+            postCode: parsedBody?.addresses?.[0]?.postCode || null,
+            houseNumber: parsedBody?.addresses?.[0]?.houseNumber || null,
+            addressText: parsedBody?.addresses?.[0]?.addressText || null,
+          },
+        ],
+        emails: parsedBody?.emails || null,
+        phones: parsedBody?.phones || null,
+        webSite: parsedBody?.webSite || null,
         isActive: true,
-        mailServer: this.event?.parsedBody?.mailServer || null,
-        mailServerUserName: this.event?.parsedBody?.mailServerUserName || null,
-        mailServerPassword: this.event?.parsedBody?.mailServerPassword || null,
-        mailServerUserPort: this.event?.parsedBody?.mailServerUserPort || null,
-        isMailServerHasVPN: this.event?.parsedBody?.isMailServerHasVPN || null,
-        reporterEmail: this.event?.parsedBody?.reporterEmail || null,
+        mailServer: {
+          mailServerEndpoint: parsedBody?.mailServerEndpoint || null,
+          mailServerPort: parsedBody?.mailServerPort || null,
+          mailServerUserName: parsedBody?.mailServerUserName || null,
+          mailServerPassword: parsedBody?.mailServerPassword || null,
+          isMailServerHasVPN: parsedBody?.isMailServerHasVPN ? true : false,
+        },
+        reporterEmail: parsedBody?.reporterEmail || null,
         createdBy: user.email,
         updatedBy: user.email,
       });
@@ -117,8 +127,7 @@ export default class CompanyApi extends Database {
         updatedBy: user.email,
       });
 
-      companyUser.save();
-
+      await companyUser.save();
       await session.commitTransaction();
 
       return {
@@ -127,8 +136,8 @@ export default class CompanyApi extends Database {
       };
     } catch (error) {
       await session.abortTransaction();
+      console.error('CompanyApi.CreateCompany', error);
 
-      console.log('CompanyApi.CreateCompany', error);
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false, error: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
@@ -138,36 +147,60 @@ export default class CompanyApi extends Database {
     }
   }
 
+  // ERROR CODES
+  // 2003 (404) Company Not Found
   public async Update(): Promise<APIGatewayProxyResultV2> {
     try {
       const { user, parsedBody } = this.event;
+
+      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), parsedBody?._id);
+      if (!isValidCompany) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
+        };
+      }
+
+      const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city });
+      if (!city) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ success: true, ecode: 2001, message: `City Record not found!` }),
+        };
+      }
+
+      const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
 
       await Company.findOneAndUpdate(
         { _id: parsedBody?._id },
         {
           $set: {
-            name: this.event?.parsedBody?.name || null,
-            companyNumber: this.event?.parsedBody?.companyNumber || null,
-            taxOffice: this.event?.parsedBody?.taxOffice || null,
-            address:[ {
-              country: this.event?.parsedBody?.address?.country || null,
-              cityId: this.event?.parsedBody?.address?.cityId || null,
-              townId: this.event?.parsedBody?.address?.townId || null,
-              postCode: this.event?.parsedBody?.address?.postCode || null,
-              houseNumber: this.event?.parsedBody?.address?.houseNumber || null,
-              addressText:this.event?.parsedBody?.address?.addressText || null,
-            }],
-            email: this.event?.parsedBody?.email || null,
-            mobile: this.event?.parsedBody?.mobile || null,
-            phone: this.event?.parsedBody?.phone || null,
-            webSite: this.event?.parsedBody?.webSite || null,
-            isActive: this.event?.parsedBody?.isActive,
-            mailServer: this.event?.parsedBody?.mailServer || null,
-            mailServerUserName: this.event?.parsedBody?.mailServerUserName || null,
-            mailServerPassword: this.event?.parsedBody?.mailServerPassword || null,
-            mailServerUserPort: this.event?.parsedBody?.mailServerUserPort || null,
-            isMailServerHasVPN: this.event?.parsedBody?.isMailServerHasVPN || null,
-            reporterEmail: this.event?.parsedBody?.reporterEmail || null,
+            name: parsedBody?.name || null,
+            companyNumber: parsedBody?.companyNumber || null,
+            taxOffice: parsedBody?.taxOffice || null,
+            addresses: [
+              {
+                country: parsedBody?.addresses?.[0]?.country || null,
+                city: city?._id || null,
+                town: town?._id || null,
+                postCode: parsedBody?.addresses?.[0]?.postCode || null,
+                houseNumber: parsedBody?.addresses?.[0]?.houseNumber || null,
+                addressText: parsedBody?.addresses?.[0]?.addressText || null,
+              },
+            ],
+            emails: parsedBody?.emails || null,
+            phones: parsedBody?.phones || null,
+            webSite: parsedBody?.webSite || null,
+            isActive: true,
+            mailServer: {
+              mailServerEndpoint: parsedBody?.mailServerEndpoint || null,
+              mailServerPort: parsedBody?.mailServerPort || null,
+              mailServerUserName: parsedBody?.mailServerUserName || null,
+              mailServerPassword: parsedBody?.mailServerPassword || null,
+              isMailServerHasVPN: parsedBody?.isMailServerHasVPN ? true : false,
+            },
+            reporterEmail: parsedBody?.reporterEmail || null,
+            createdBy: user.email,
             updatedBy: user.email,
           },
         }
@@ -178,6 +211,8 @@ export default class CompanyApi extends Database {
         body: JSON.stringify({ success: true }),
       };
     } catch (error) {
+      console.error('CompanyApi.Update', error);
+
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),
@@ -194,6 +229,8 @@ export default class CompanyApi extends Database {
         body: JSON.stringify({ success: true, company }),
       };
     } catch (error) {
+      console.error('CompanyApi.DeleteOne', error);
+
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),
