@@ -1,4 +1,4 @@
-import { Schema, model, PopulatedDoc, Model } from 'mongoose';
+import { Schema, model, PopulatedDoc, Model, ObjectId, StringExpressionOperatorReturningBoolean } from 'mongoose';
 import { FilterQueryBuilder } from '../helpers/FilterQueryBuilder';
 import { ICity } from './City';
 import CompanyUser from './CompanyUser';
@@ -128,7 +128,7 @@ companySchema.static('isCompanyBelongsToUser', async function (userId: string, c
   try {
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());
-    
+
     return companyIds.indexOf(companyId) > -1 ? true : false;
   } catch (error) {
     return false;
@@ -155,21 +155,15 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
   }
 });
 
-companySchema.static('getCompanyByUser', async function (userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null> {
+companySchema.static('getCompanyByUser', async function (userId: string, companyId: StringExpressionOperatorReturningBoolean): Promise<ICompany | null> {
   try {
-    current = current || 0;
-    pageSize = pageSize || 10;
-
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
-    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const company = await this.findOne({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
+    const companyObjectId = companyUsers.map((companyUser: any) => companyUser.companyId)?.filter((cid: any) => cid?.toString() === companyId)?.[0] || null;
+    const company = await this.findById(companyObjectId)
       .populate('addresses.city')
       .exec();
 
-    return {
-      list: [company],
-      size: companyIds?.length || 0,
-    };
+    return company;
   } catch (error) {
     return null;
   }
