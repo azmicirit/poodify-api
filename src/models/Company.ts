@@ -1,4 +1,4 @@
-import { Schema, model, PopulatedDoc, Model } from 'mongoose';
+import { Schema, model, PopulatedDoc, Model, ObjectId, StringExpressionOperatorReturningBoolean } from 'mongoose';
 import { FilterQueryBuilder } from '../helpers/FilterQueryBuilder';
 import { ICity } from './City';
 import CompanyUser from './CompanyUser';
@@ -130,7 +130,6 @@ companySchema.static('isCompanyBelongsToUser', async function (userId: string, c
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());
 
     const company = await this.findOne({ $and: [{ isActive: true }, { _id: companyId }] });
-
     return companyIds.indexOf(companyId) > -1 && company ? true : false;
   } catch (error) {
     return false;

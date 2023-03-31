@@ -39,15 +39,20 @@ export default class CompanyApi extends Database {
     try {
       const { user, parsedBody } = this.event;
       const filters = parsedBody?.filters;
-      const current = parsedBody?.pagination?.current || 1;
-      const pageSize = parsedBody?.pagination?.pageSize || 10;
 
-      const result = await Company.getCompanyByUser(user._id?.toString(), filters, current, pageSize);
+      const result = await Company.getCompanyByUser(user._id?.toString(), parsedBody?.companyId, filters);
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ success: true, company: result.list, total: result.size }),
-      };
+      if (result) {
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ success: true, company: result }),
+        };
+      } else {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ success: false, company: null }),
+        };
+      }
     } catch (error) {
       console.error('CompanyApi.GetOne', error);
 
