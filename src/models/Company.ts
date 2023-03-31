@@ -128,8 +128,10 @@ companySchema.static('isCompanyBelongsToUser', async function (userId: string, c
   try {
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());
-    
-    return companyIds.indexOf(companyId) > -1 ? true : false;
+
+    const company = await this.findOne({ $and: [{ isActive: true }, { _id: companyId }] });
+
+    return companyIds.indexOf(companyId) > -1 && company ? true : false;
   } catch (error) {
     return false;
   }
@@ -142,7 +144,11 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
 
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const companies = await this.find({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
+    const companies = await this.find(
+      { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ isActive: true }, { _id: { $in: companyIds } }] }) },
+      {},
+      { skip: (current - 1) * 10, limit: pageSize }
+    )
       .populate('addresses.city')
       .exec();
 
@@ -162,7 +168,11 @@ companySchema.static('getCompanyByUser', async function (userId: string, filters
 
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const company = await this.findOne({ ...FilterQueryBuilder.RefineFilterParser(filters, { _id: { $in: companyIds } }) }, {}, { skip: (current - 1) * 10, limit: pageSize })
+    const company = await this.findOne(
+      { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ isActive: true }, { _id: { $in: companyIds } }] }) },
+      {},
+      { skip: (current - 1) * 10, limit: pageSize }
+    )
       .populate('addresses.city')
       .exec();
 

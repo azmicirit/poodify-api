@@ -85,7 +85,6 @@ export default class CompanyApi extends Database {
           body: JSON.stringify({ success: true, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
         };
       }
-      console.log();
 
       const company = new Company({
         name: parsedBody?.name || null,
@@ -161,6 +160,14 @@ export default class CompanyApi extends Database {
         };
       }
 
+      const currentRecord = await Company.findOne({ $and: [{ _id: { $ne: parsedBody?._id } }, { companyNumber: parsedBody?.companyNumber }] });
+      if (currentRecord) {
+        return {
+          statusCode: 409,
+          body: JSON.stringify({ success: true, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
+        };
+      }
+
       const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city });
       if (!city) {
         return {
@@ -221,12 +228,30 @@ export default class CompanyApi extends Database {
   }
   public async DeleteOne(): Promise<APIGatewayProxyResultV2> {
     try {
-      const { user } = this.event;
-      const company = await Company.findOneAndDelete({});
+      const { user, parsedBody } = this.event;
+
+      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), parsedBody?._id);
+
+      if (!isValidCompany) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
+        };
+      }
+
+      const company = await Company.findOneAndUpdate(
+        { _id: parsedBody?._id },
+        {
+          $set: {
+            isActive: false,
+            updatedBy: user.email,
+          },
+        }
+      );
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, company }),
+        body: JSON.stringify({ success: true }),
       };
     } catch (error) {
       console.error('CompanyApi.DeleteOne', error);
