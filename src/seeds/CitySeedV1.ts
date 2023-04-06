@@ -14,11 +14,19 @@ export default class CitySeedV1 extends Database {
         code: 'London',
         description: 'London',
         country: 'UK',
-        createdBy:"seedup",
-        createdAt:TIMESTAMP,
+        createdBy: 'seedup',
+        createdAt: TIMESTAMP,
       }).save();
 
-      return [london];
+      const istanbul = await new City({
+        code: 'Istanbul',
+        description: 'Istanbul',
+        country: 'TR',
+        createdBy: 'seedup',
+        createdAt: TIMESTAMP,
+      }).save();
+
+      return [london, istanbul];
     } catch (error) {
       console.error(error);
       throw new Error(error);

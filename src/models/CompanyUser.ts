@@ -2,17 +2,16 @@ import { Schema, model, PopulatedDoc, Model } from 'mongoose';
 import { ICompany } from './Company';
 
 export interface ICompanyUser {
-  companyId:PopulatedDoc<ICompany>;
+  companyId: PopulatedDoc<ICompany>;
   userId: Schema.Types.ObjectId;
-  active: boolean;
+  isActive: boolean;
   createdBy: string;
   updatedBy: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface ICompanyUserMethods {
-}
+export interface ICompanyUserMethods {}
 
 type CompanyUserModel = Model<ICompanyUser, {}, ICompanyUser>;
 
@@ -20,7 +19,7 @@ const companyUserSchema = new Schema<ICompanyUser, ICompanyUserMethods, CompanyU
   {
     companyId: { type: Schema.Types.ObjectId, required: true, ref: 'companies' },
     userId: { type: Schema.Types.ObjectId, required: true, ref: 'users' },
-    active: { type: Boolean, required: true, default: true },
+    isActive: { type: Boolean, required: true, default: true },
     createdBy: { type: String, required: true, maxlength: 64 },
     updatedBy: { type: String, required: true, maxlength: 64 },
     createdAt: { type: Date, required: false },

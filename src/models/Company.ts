@@ -3,6 +3,7 @@ import { FilterQueryBuilder } from '../helpers/FilterQueryBuilder';
 import { ICity } from './City';
 import CompanyUser from './CompanyUser';
 import { ITown } from './Town';
+import Formatter from '../utils/Formatter';
 
 export interface IMailServer {
   mailServerEndpoint: string;
@@ -23,8 +24,8 @@ export interface IAddress {
 
 enum PhoneType {
   Mobile = 1,
-  Home = 2,
-  Office = 3,
+  Office = 2,
+  Home = 3,
   Fax = 4,
 }
 
@@ -40,9 +41,9 @@ export interface ICompany {
   companyNumber: string;
   taxOffice: string;
   userCount: number;
-  addresses: [IAddress];
-  emails: [string];
-  phones: [IPhone];
+  addresses: IAddress[];
+  emails: string[];
+  phones: IPhone[];
   webSite: string;
   isActive: boolean;
   mailServer: IMailServer;
@@ -91,7 +92,15 @@ const companySchema = new Schema<ICompany, CompanyModel>(
       },
     ],
     emails: [{ type: String, required: true }],
-    phones: [{ type: String, required: false, maxlength: 16 }],
+    phones: [
+      {
+        type: {
+          countryCode: { type: String, required: true },
+          number: { type: String, required: true },
+          phoneType: { type: String, enum: PhoneType, required: true },
+        },
+      },
+    ],
     isActive: { type: Boolean, required: true, default: true },
     mailServer: {
       type: {
@@ -124,11 +133,27 @@ const companySchema = new Schema<ICompany, CompanyModel>(
   }
 );
 
+companySchema.pre('save', function (this: ICompany, next: any): void {
+  this.phones = Formatter.FormatPhones(this.phones);
+
+  return next();
+});
+
+companySchema.pre('updateOne', function (this: any, next: any): void {
+  if (this?.phones) {
+    this.phones = Formatter.FormatPhones(this.phones);
+  } else if (this?._update['$set']?.phones) {
+    this.set({ phones: Formatter.FormatPhones(this.phone) });
+  }
+
+  return next();
+});
+
 companySchema.static('isCompanyBelongsToUser', async function (userId: string, companyId: string): Promise<boolean> {
   try {
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());
-    const company = await this.findOne({ $and: [{ isActive: true }, { _id: companyId }] });
+    const company = await this.findOne({ $and: [{ _id: companyId }] });
     return companyIds.indexOf(companyId) > -1 && company ? true : false;
   } catch (error) {
     return false;
@@ -143,7 +168,7 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
     const companies = await this.find(
-      { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ isActive: true }, { _id: { $in: companyIds } }] }) },
+      { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ _id: { $in: companyIds } }] }) },
       {},
       { skip: (current - 1) * 10, limit: pageSize }
     )
@@ -163,7 +188,7 @@ companySchema.static('getCompanyByUser', async function (userId: string, company
   try {
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const company = await this.findOne({ $and: [{ isActive: true }, { _id: { $in: companyIds } }] })
+    const company = await this.findOne({ $and: [{ _id: { $in: companyIds } }] })
       .populate('addresses.city')
       .exec();
 

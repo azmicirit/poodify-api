@@ -17,7 +17,7 @@ export const Up = async (): Promise<any> => {
 export const Down = async (): Promise<any> => {
   try {
     // ---- ADD NEW SEEDS HERE -- START ----
-
+    await new CitySeedV1().Down();
 
     // ---- ADD NEW SEEDS HERE ---- END ----
     return null;

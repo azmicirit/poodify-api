@@ -1,4 +1,4 @@
-import mongoose, { ClientSession } from 'mongoose';
+import mongoose, { ClientSession, Types } from 'mongoose';
 import { APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import Database from './helpers/Database';
 import { CustomAPIEvent } from './types/Generic';
@@ -126,7 +126,7 @@ export default class CompanyApi extends Database {
       const companyUser = await new CompanyUser({
         companyId: company._id,
         userId: user._id,
-        active: true,
+        isActive: true,
         createdBy: user.email,
         updatedBy: user.email,
       });
@@ -147,7 +147,7 @@ export default class CompanyApi extends Database {
         body: JSON.stringify({ success: false, error: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
       };
     } finally {
-      session.endSession();
+      await session.endSession();
     }
   }
 
@@ -156,8 +156,9 @@ export default class CompanyApi extends Database {
   public async Update(): Promise<APIGatewayProxyResultV2> {
     try {
       const { user, parsedBody } = this.event;
+      const companyId = parsedBody?.companyId;
 
-      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), parsedBody?._id);
+      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
       if (!isValidCompany) {
         return {
           statusCode: 404,
@@ -165,7 +166,7 @@ export default class CompanyApi extends Database {
         };
       }
 
-      const currentRecord = await Company.findOne({ $and: [{ _id: { $ne: parsedBody?._id } }, { companyNumber: parsedBody?.companyNumber }] });
+      const currentRecord = await Company.findOne({ $and: [{ _id: { $ne: companyId } }, { companyNumber: parsedBody?.companyNumber }] });
       if (currentRecord) {
         return {
           statusCode: 409,
@@ -184,7 +185,7 @@ export default class CompanyApi extends Database {
       const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
 
       await Company.findOneAndUpdate(
-        { _id: parsedBody?._id },
+        { _id: companyId },
         {
           $set: {
             name: parsedBody?.name || null,
@@ -203,7 +204,6 @@ export default class CompanyApi extends Database {
             emails: parsedBody?.emails || null,
             phones: parsedBody?.phones || null,
             webSite: parsedBody?.webSite || null,
-            isActive: true,
             mailServer: {
               mailServerEndpoint: parsedBody?.mailServerEndpoint || null,
               mailServerPort: parsedBody?.mailServerPort || null,
@@ -232,10 +232,14 @@ export default class CompanyApi extends Database {
     }
   }
   public async DeleteOne(): Promise<APIGatewayProxyResultV2> {
+    const session: ClientSession = await mongoose.startSession();
+    session.startTransaction();
+
     try {
       const { user, parsedBody } = this.event;
+      const companyId = parsedBody?.companyId;
 
-      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), parsedBody?._id);
+      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
 
       if (!isValidCompany) {
         return {
@@ -244,8 +248,8 @@ export default class CompanyApi extends Database {
         };
       }
 
-      const company = await Company.findOneAndUpdate(
-        { _id: parsedBody?._id },
+      await Company.findOneAndUpdate(
+        { _id: companyId },
         {
           $set: {
             isActive: false,
@@ -254,17 +258,32 @@ export default class CompanyApi extends Database {
         }
       );
 
+      await CompanyUser.updateMany(
+        { companyId },
+        {
+          $set: {
+            isActive: false,
+            updatedBy: user.email,
+          },
+        }
+      );
+
+      await session.commitTransaction();
+
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true }),
       };
     } catch (error) {
+      await session.abortTransaction();
       console.error('CompanyApi.DeleteOne', error);
 
       return {
         statusCode: 404,
         body: JSON.stringify({ success: false }),
       };
+    } finally {
+      await session.endSession();
     }
   }
 }
