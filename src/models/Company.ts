@@ -22,7 +22,7 @@ export interface IAddress {
   houseNumber: string;
 }
 
-enum PhoneType {
+export enum PhoneType {
   Mobile = 1,
   Office = 2,
   Home = 3,
@@ -30,7 +30,7 @@ enum PhoneType {
 }
 
 export interface IPhone {
-  countryCode: number;
+  countryCode: string;
   phoneType: PhoneType;
   number: string;
 }
@@ -53,9 +53,9 @@ export interface ICompany {
     thumbnail?: string;
   };
   createdBy: string;
-  updatedBy: string;
-  createdAt: Date;
-  updatedAt: Date;
+  updatedBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface CompanyListResult {
@@ -97,7 +97,7 @@ const companySchema = new Schema<ICompany, CompanyModel>(
         type: {
           countryCode: { type: String, required: true },
           number: { type: String, required: true },
-          phoneType: { type: String, enum: PhoneType, required: true },
+          phoneType: { type: Number, enum: PhoneType, required: true },
         },
       },
     ],
@@ -120,8 +120,8 @@ const companySchema = new Schema<ICompany, CompanyModel>(
       },
       default: { url: null, thumbnail: null },
     },
-    createdBy: { type: String, required: true, maxlength: 64 },
-    updatedBy: { type: String, required: true, maxlength: 64 },
+    createdBy: { type: String, required: true },
+    updatedBy: { type: String, required: false },
   },
   {
     timestamps: true,
@@ -184,13 +184,10 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
   }
 });
 
-companySchema.static('getCompanyByUser', async function (userId: string, companyId: StringExpressionOperatorReturningBoolean): Promise<ICompany | null> {
+companySchema.static('getCompanyByUser', async function (userId: string, companyId: string): Promise<ICompany | null> {
   try {
-    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
-    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const company = await this.findOne({ $and: [{ _id: { $in: companyIds } }] })
-      .populate('addresses.city')
-      .exec();
+    const companyUser = await CompanyUser.findOne({ userId, companyId }).select('companyId');
+    const company = await this.findById(companyUser?.companyId).populate('addresses.city').exec();
 
     return company;
   } catch (error) {

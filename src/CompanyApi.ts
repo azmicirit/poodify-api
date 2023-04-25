@@ -73,7 +73,7 @@ export default class CompanyApi extends Database {
     try {
       const { user, parsedBody } = this.event;
 
-      const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city });
+      const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city?.code });
       if (!city) {
         return {
           statusCode: 404,
@@ -156,7 +156,7 @@ export default class CompanyApi extends Database {
   public async Update(): Promise<APIGatewayProxyResultV2> {
     try {
       const { user, parsedBody } = this.event;
-      const companyId = parsedBody?.companyId;
+      const companyId = parsedBody?._id;
 
       const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
       if (!isValidCompany) {
@@ -174,7 +174,7 @@ export default class CompanyApi extends Database {
         };
       }
 
-      const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city });
+      const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city?.code });
       if (!city) {
         return {
           statusCode: 404,
