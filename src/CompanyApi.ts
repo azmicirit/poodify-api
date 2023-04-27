@@ -6,6 +6,9 @@ import Company from './models/Company';
 import City from './models/City';
 import CompanyUser from './models/CompanyUser';
 import Town from './models/Town';
+import Uploader, { FOLDERS } from './helpers/Uploader';
+import moment = require('moment');
+import Formatter from './utils/Formatter';
 
 export default class CompanyApi extends Database {
   constructor(event: CustomAPIEvent, context: Context) {
@@ -66,6 +69,7 @@ export default class CompanyApi extends Database {
   // ERROR CODES
   // 2001 (404) City Not Found
   // 2002 (409) Company Already Taken
+  // 2004 (500) File Upload Error
   public async Create(): Promise<APIGatewayProxyResultV2> {
     const session: ClientSession = await mongoose.startSession();
     session.startTransaction();
@@ -132,6 +136,24 @@ export default class CompanyApi extends Database {
       });
 
       await companyUser.save();
+
+      const uploadedLogo = await new Uploader().Upload(FOLDERS.COMPANY, `logo_${company._id?.toString()}`, parsedBody?.logo?.url, true, 'base64');
+      if (!uploadedLogo) {
+        await session.abortTransaction();
+        return {
+          statusCode: 409,
+          body: JSON.stringify({ success: true, ecode: 2004, message: `File Upload Error` }),
+        };
+      }
+
+      await company.update({
+        $set: {
+          logo: {
+            url: uploadedLogo,
+          },
+        },
+      });
+
       await session.commitTransaction();
 
       return {
@@ -158,6 +180,7 @@ export default class CompanyApi extends Database {
       const { user, parsedBody } = this.event;
       const companyId = parsedBody?._id;
 
+      // VALIDATE COMPANY IS EXIST AND BELONGS TO USER
       const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
       if (!isValidCompany) {
         return {
@@ -183,6 +206,20 @@ export default class CompanyApi extends Database {
       }
 
       const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
+
+      const uploadedLogo = await new Uploader().Upload(
+        FOLDERS.COMPANY,
+        `logo_${companyId}`,
+        parsedBody?.logo?.url,
+        true,
+        'base64'
+      );
+      if (!uploadedLogo) {
+        return {
+          statusCode: 409,
+          body: JSON.stringify({ success: true, ecode: 2004, message: `File Upload Error` }),
+        };
+      }
 
       await Company.findOneAndUpdate(
         { _id: companyId },
@@ -210,6 +247,9 @@ export default class CompanyApi extends Database {
               mailServerUserName: parsedBody?.mailServerUserName || null,
               mailServerPassword: parsedBody?.mailServerPassword || null,
               isMailServerHasVPN: parsedBody?.isMailServerHasVPN ? true : false,
+            },
+            logo: {
+              url: uploadedLogo || null,
             },
             reporterEmail: parsedBody?.reporterEmail || null,
             createdBy: user.email,

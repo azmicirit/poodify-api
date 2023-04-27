@@ -18,4 +18,8 @@ export default class Formatter {
       }) || []
     );
   }
+
+  static RemoveSpecialCharacters(text?: string): string {
+    return text?.length > 0 ? text.replace(/[^a-zA-Z0-9]/g, '') : '';
+  }
 }

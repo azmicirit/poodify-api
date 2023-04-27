@@ -119,6 +119,7 @@ const companySchema = new Schema<ICompany, CompanyModel>(
         thumbnail: { type: String, required: false },
       },
       default: { url: null, thumbnail: null },
+      required: false,
     },
     createdBy: { type: String, required: true },
     updatedBy: { type: String, required: false },
