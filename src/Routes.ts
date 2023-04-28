@@ -29,6 +29,11 @@ export const ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, context: Con
       return await new CompanyApi(event, context).DeleteOne();
     },
   },
+  '/company/active': {
+    Func: async (event: CustomAPIEvent, context: Context) => {
+      return await new CompanyApi(event, context).SetActive();
+    },
+  },
 };
 
 export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, context: Context) => {} } } = {

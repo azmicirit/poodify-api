@@ -43,7 +43,7 @@ export default class CompanyApi extends Database {
       const { user, parsedBody } = this.event;
       const filters = parsedBody?.filters;
 
-      const result = await Company.getCompanyByUser(user._id?.toString(), parsedBody?.companyId, filters);
+      const result = await Company.getCompanyByUser(user._id?.toString(), parsedBody?._id, filters);
 
       if (result) {
         return {
@@ -178,18 +178,17 @@ export default class CompanyApi extends Database {
   public async Update(): Promise<APIGatewayProxyResultV2> {
     try {
       const { user, parsedBody } = this.event;
-      const companyId = parsedBody?._id;
 
       // VALIDATE COMPANY IS EXIST AND BELONGS TO USER
-      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
-      if (!isValidCompany) {
+      const company = await Company.isCompanyBelongsToUser(user?._id.toString(), parsedBody?._id.toString());
+      if (!company) {
         return {
           statusCode: 404,
           body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
         };
       }
 
-      const currentRecord = await Company.findOne({ $and: [{ _id: { $ne: companyId } }, { companyNumber: parsedBody?.companyNumber }] });
+      const currentRecord = await Company.findOne({ $and: [{ _id: { $ne: company._id } }, { companyNumber: parsedBody?.companyNumber }] });
       if (currentRecord) {
         return {
           statusCode: 409,
@@ -207,13 +206,7 @@ export default class CompanyApi extends Database {
 
       const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
 
-      const uploadedLogo = await new Uploader().Upload(
-        FOLDERS.COMPANY,
-        `logo_${companyId}`,
-        parsedBody?.logo?.url,
-        true,
-        'base64'
-      );
+      const uploadedLogo = await new Uploader().Upload(FOLDERS.COMPANY, `logo_${company._id.toString()}`, parsedBody?.logo?.url, true, 'base64');
       if (!uploadedLogo) {
         return {
           statusCode: 409,
@@ -222,7 +215,7 @@ export default class CompanyApi extends Database {
       }
 
       await Company.findOneAndUpdate(
-        { _id: companyId },
+        { _id: company._id },
         {
           $set: {
             name: parsedBody?.name || null,
@@ -271,17 +264,17 @@ export default class CompanyApi extends Database {
       };
     }
   }
+
   public async DeleteOne(): Promise<APIGatewayProxyResultV2> {
     const session: ClientSession = await mongoose.startSession();
     session.startTransaction();
 
     try {
       const { user, parsedBody } = this.event;
-      const companyId = parsedBody?.companyId;
+      const companyId = parsedBody?._id;
 
-      const isValidCompany = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
-
-      if (!isValidCompany) {
+      const company = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
+      if (!company) {
         return {
           statusCode: 404,
           body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
@@ -289,7 +282,7 @@ export default class CompanyApi extends Database {
       }
 
       await Company.findOneAndUpdate(
-        { _id: companyId },
+        { _id: company._id },
         {
           $set: {
             isActive: false,
@@ -313,6 +306,64 @@ export default class CompanyApi extends Database {
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true }),
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('CompanyApi.DeleteOne', error);
+
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ success: false }),
+      };
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  public async SetActive(): Promise<APIGatewayProxyResultV2> {
+    const session: ClientSession = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const { user, parsedBody } = this.event;
+      const companyId = parsedBody?._id;
+
+      const company = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
+      if (!company) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
+        };
+      }
+
+      const updatedCompany = await Company.findOneAndUpdate(
+        { _id: company._id },
+        {
+          $set: {
+            isActive: parsedBody?.isActive ? true : false,
+            updatedBy: user.email,
+          },
+        },
+        {
+          new: true,
+        }
+      );
+
+      await CompanyUser.updateMany(
+        { companyId },
+        {
+          $set: {
+            isActive: parsedBody?.isActive ? true : false,
+            updatedBy: user.email,
+          },
+        }
+      );
+
+      await session.commitTransaction();
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true, company: updatedCompany }),
       };
     } catch (error) {
       await session.abortTransaction();
