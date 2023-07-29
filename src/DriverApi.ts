@@ -189,7 +189,6 @@ export default class DriverApi extends Database {
 
       const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
       const driver = await Driver.getDriverByUser(user?._id?.toString(), parsedBody?._id);
-      console.log(driver);
 
       if (!driver) {
         return {

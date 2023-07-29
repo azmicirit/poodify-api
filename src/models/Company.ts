@@ -140,8 +140,6 @@ companySchema.pre('save', function (this: ICompany, next: any): void {
 });
 
 companySchema.pre('updateOne', function (this: any, next: any): void {
-  console.log(this);
-  
   if (this?.phones) {
     this.phones = Formatter.FormatPhones(this.phones);
   } else if (this?._update['$set']?.phones) {
