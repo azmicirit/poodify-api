@@ -3,6 +3,7 @@ import Validator from '../utils/Validator';
 
 export enum FOLDERS {
   COMPANY = 'company',
+  DRIVER = 'driver',
 }
 
 export default class Uploader {

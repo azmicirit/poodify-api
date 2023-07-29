@@ -41,14 +41,13 @@ export default class CompanyApi extends Database {
   public async GetOne(): Promise<APIGatewayProxyResultV2> {
     try {
       const { user, parsedBody } = this.event;
-      const filters = parsedBody?.filters;
 
-      const result = await Company.getCompanyByUser(user._id?.toString(), parsedBody?._id, filters);
+      const company = await Company.getCompanyByUser(user._id?.toString(), parsedBody?.companyId);
 
-      if (result) {
+      if (company) {
         return {
           statusCode: 200,
-          body: JSON.stringify({ success: true, company: result }),
+          body: JSON.stringify({ success: true, company }),
         };
       } else {
         return {
@@ -162,7 +161,7 @@ export default class CompanyApi extends Database {
       };
     } catch (error) {
       await session.abortTransaction();
-      console.error('CompanyApi.CreateCompany', error);
+      console.error('CompanyApi.Create', error);
 
       return {
         statusCode: 404,
@@ -367,7 +366,7 @@ export default class CompanyApi extends Database {
       };
     } catch (error) {
       await session.abortTransaction();
-      console.error('CompanyApi.DeleteOne', error);
+      console.error('CompanyApi.SetActive', error);
 
       return {
         statusCode: 404,

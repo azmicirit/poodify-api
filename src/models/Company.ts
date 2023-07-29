@@ -63,12 +63,10 @@ export interface CompanyListResult {
   size: number;
 }
 
-type ICompanyModel = Model<ICompany, {}>;
-
 interface CompanyModel extends Model<ICompany> {
   isCompanyBelongsToUser(userId: string, companyId: string): Promise<ICompany | null>;
   getCompaniesByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
-  getCompanyByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
+  getCompanyByUser(userId: string, companyId: string): Promise<ICompany | null>;
 }
 
 const companySchema = new Schema<ICompany, CompanyModel>(
@@ -102,6 +100,7 @@ const companySchema = new Schema<ICompany, CompanyModel>(
       },
     ],
     isActive: { type: Boolean, required: true, default: true },
+    webSite: { type: String, required: false, maxlength: 128 },
     mailServer: {
       type: {
         mailServerEndpoint: { type: String, required: false, maxlength: 32 },
@@ -141,6 +140,8 @@ companySchema.pre('save', function (this: ICompany, next: any): void {
 });
 
 companySchema.pre('updateOne', function (this: any, next: any): void {
+  console.log(this);
+  
   if (this?.phones) {
     this.phones = Formatter.FormatPhones(this.phones);
   } else if (this?._update['$set']?.phones) {
