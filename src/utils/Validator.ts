@@ -9,4 +9,9 @@ export default class Validator {
       return false;
     }
   }
+
+  static CheckIsPasswordValid(password: string): boolean {
+    // One Uppercase, One Special Character, One Lowercase, Min 8 Length
+    return /^(?=.*[A-Z])(?=.*[!@#$&*.])(?=.*[0-9])(?=.*[a-z]).{8}$/.test(password);
+  }
 }

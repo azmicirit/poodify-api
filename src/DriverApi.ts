@@ -8,6 +8,8 @@ import Town from './models/Town';
 import City from './models/City';
 import CompanyDriver from './models/CompanyDriver';
 import Uploader, { FOLDERS } from './helpers/Uploader';
+import { AuthService, PROCESS } from './services/AuthService';
+import Validator from './utils/Validator';
 
 export default class DriverApi extends Database {
   constructor(event: CustomAPIEvent, context: Context) {
@@ -21,7 +23,7 @@ export default class DriverApi extends Database {
       const current = parsedBody?.pagination?.current || 1;
       const pageSize = parsedBody?.pagination?.pageSize || 10;
 
-      const result = await Driver.getDriversByUser(user._id?.toString(), filters, current, pageSize);
+      const result = await Driver.getDriversByUser(user._id?.toString(), parsedBody?.companyId, filters, current, pageSize);
 
       return {
         statusCode: 200,
@@ -41,7 +43,7 @@ export default class DriverApi extends Database {
     try {
       const { user, parsedBody } = this.event;
 
-      const driver = await Driver.getDriverByUser(user._id?.toString(), parsedBody?.driverId);
+      const driver = await Driver.getDriverByUser(user._id?.toString(), parsedBody?.companyId, parsedBody?.driverId);
 
       if (driver) {
         return {
@@ -67,8 +69,9 @@ export default class DriverApi extends Database {
   // ERROR CODES
   // 3001 (404) City Not Found
   // 3002 (404) Company Not Found
-  // 3003 (409) Email is taken by someone else
+  // 3003 (409) Driver email is already registered in that company
   // 3004 (500) File Upload Error
+  // 3006 (422) Weak Password
   public async Create(): Promise<APIGatewayProxyResultV2> {
     const session: ClientSession = await mongoose.startSession();
     session.startTransaction();
@@ -76,11 +79,20 @@ export default class DriverApi extends Database {
     try {
       const { user, parsedBody } = this.event;
 
+      // CHECK PASSWORD
+      const isStrongPassword = Validator.CheckIsPasswordValid(parsedBody?.password);
+      if (!isStrongPassword) {
+        return {
+          statusCode: 422,
+          body: JSON.stringify({ success: false, ecode: 3006, message: `Weak Password` }),
+        };
+      }
+
       const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city?.code });
       if (!city) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 3001, message: `City Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 3001, message: `City Record not found!` }),
         };
       }
 
@@ -90,53 +102,61 @@ export default class DriverApi extends Database {
       if (!company) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 3002, message: `Company Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 3002, message: `Company Record not found!` }),
         };
       }
 
-      const isDriverExist = await Driver.exists({ email: parsedBody?.email }).exec();
-      if (isDriverExist) {
+      let driver = await Driver.findOne({ email: parsedBody?.email }).exec();
+      // ADD A NEW DRIVER IF IT ISN'T EXIST
+      if (!driver) {
+        driver = new Driver({
+          forenames: parsedBody?.forenames,
+          lastname: parsedBody?.lastname,
+          email: parsedBody?.email,
+          isActive: parsedBody?.isActive || false,
+          addresses: [
+            {
+              country: parsedBody?.addresses?.[0]?.country || null,
+              city: city?._id || null,
+              town: town?._id || null,
+              postCode: parsedBody?.addresses?.[0]?.postCode || null,
+              houseNumber: parsedBody?.addresses?.[0]?.houseNumber || null,
+              addressText: parsedBody?.addresses?.[0]?.addressText || null,
+            },
+          ],
+          identityNumber: parsedBody?.identityNumber,
+          dob: parsedBody?.dob,
+          mobile: parsedBody?.mobile,
+        });
+
+        await driver.save();
+      }
+
+      let isCompanyDriverExist = await CompanyDriver.exists({ driverId: driver._id, companyId: company._id });
+      // ADD A NEW COMPANY DRIVER IF IT ISN'T EXIST
+      if (!isCompanyDriverExist) {
+        const companyDriver = new CompanyDriver({
+          companyId: company._id,
+          driverId: driver._id,
+          isActive: true,
+          createdBy: user.email,
+          updatedBy: user.email,
+        });
+
+        await companyDriver.save();
+      } else {
+        await session.abortTransaction();
+
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 3003, message: `Email is taken by someone else` }),
+          body: JSON.stringify({ success: false, ecode: 3003, message: `Driver email is already registered in that company` }),
         };
       }
-
-      const driver = new Driver({
-        forenames: parsedBody?.forenames,
-        lastname: parsedBody?.lastname,
-        email: parsedBody?.email,
-        isActive: parsedBody?.isActive || false,
-        addresses: [
-          {
-            country: parsedBody?.addresses?.[0]?.country || null,
-            city: city?._id || null,
-            town: town?._id || null,
-            postCode: parsedBody?.addresses?.[0]?.postCode || null,
-            houseNumber: parsedBody?.addresses?.[0]?.houseNumber || null,
-            addressText: parsedBody?.addresses?.[0]?.addressText || null,
-          },
-        ],
-        identityNumber: parsedBody?.identityNumber,
-        dob: parsedBody?.dob,
-        mobile: parsedBody?.mobile,
-      });
-
-      await driver.save();
-
-      const companyDriver = await new CompanyDriver({
-        companyId: company._id,
-        driverId: driver._id,
-        isActive: true,
-        createdBy: user.email,
-        updatedBy: user.email,
-      });
-
-      await companyDriver.save();
 
       const uploadedLogo = await new Uploader().Upload(FOLDERS.DRIVER, `profile_${driver._id?.toString()}`, parsedBody?.profilePhoto?.url, true, 'base64');
       if (!uploadedLogo) {
         await session.abortTransaction();
+
         return {
           statusCode: 409,
           body: JSON.stringify({ success: false, ecode: 3004, message: `File Upload Error` }),
@@ -150,6 +170,17 @@ export default class DriverApi extends Database {
           },
         },
       });
+
+      // ADD A NEW USER IN AUTH API
+      const authResult = await new AuthService().Send(PROCESS.NEW_DRIVER, this.event);
+      if (!authResult?.success) {
+        await session.abortTransaction();
+
+        return {
+          statusCode: authResult?.errorCode || 500,
+          body: JSON.stringify({ success: false, error: authResult?.error || 'Fatal Error' }),
+        };
+      }
 
       await session.commitTransaction();
 
@@ -179,21 +210,39 @@ export default class DriverApi extends Database {
     try {
       const { user, parsedBody } = this.event;
 
+      // CHECK PASSWORD IF IT IS EXIST
+      const isStrongPassword = parsedBody?.password?.length > 0 ? Validator.CheckIsPasswordValid(parsedBody?.password) : true;
+      if (!isStrongPassword) {
+        return {
+          statusCode: 422,
+          body: JSON.stringify({ success: false, ecode: 3006, message: `Weak Password` }),
+        };
+      }
+
       const city = await City.findOne({ code: parsedBody?.addresses?.[0]?.city?.code });
       if (!city) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 3001, message: `City Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 3001, message: `City Record not found!` }),
         };
       }
 
       const town = await Town.findOne({ code: parsedBody?.addresses?.[0]?.town });
-      const driver = await Driver.getDriverByUser(user?._id?.toString(), parsedBody?.driverId);
 
+      // CHECK DRIVER
+      const driver = await Driver.isDriverBelongToUser(user?._id?.toString(), parsedBody?.driverId);
       if (!driver) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 3005, message: `Driver not found!` }),
+          body: JSON.stringify({ success: false, ecode: 3005, message: `Driver not found!` }),
+        };
+      }
+
+      // CHECK PASSWORD IF EMAIL IS CHANGED
+      if (driver.email.toLowerCase() !== parsedBody?.email?.toLowerCase() && !parsedBody?.password?.length) {
+        return {
+          statusCode: 422,
+          body: JSON.stringify({ success: false, ecode: 3006, message: `Weak Password` }),
         };
       }
 
@@ -234,6 +283,17 @@ export default class DriverApi extends Database {
         }
       );
 
+      // ADD A NEW USER IN AUTH API
+      const authResult = await new AuthService().Send(PROCESS.NEW_DRIVER, this.event);
+      if (!authResult?.success) {
+        await session.abortTransaction();
+
+        return {
+          statusCode: authResult?.errorCode || 500,
+          body: JSON.stringify({ success: false, error: authResult?.error || 'Fatal Error' }),
+        };
+      }
+
       await session.commitTransaction();
 
       return {
@@ -261,16 +321,34 @@ export default class DriverApi extends Database {
       const { user, parsedBody } = this.event;
       const driverId = parsedBody?.driverId;
 
-      const driver = await Driver.getDriverByUser(user?._id.toString(), driverId);
+      // CHECK DRIVER
+      const driver = await Driver.isDriverBelongToUser(user?._id.toString(), driverId);
       if (!driver) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2003, message: `Driver Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 2003, message: `Driver Record not found!` }),
         };
       }
 
-      await Driver.deleteOne({ _id: driver._id });
-      await CompanyDriver.deleteOne({ companyId: parsedBody?.companyId, driverId: driver._id });
+      await Driver.findOneAndUpdate(
+        { _id: driver._id },
+        {
+          $set: {
+            isActive: false,
+            updatedBy: user.email,
+          },
+        }
+      );
+
+      await CompanyDriver.updateMany(
+        { driverId: driver._id },
+        {
+          $set: {
+            isActive: false,
+            updatedBy: user.email,
+          },
+        }
+      );
 
       await session.commitTransaction();
 

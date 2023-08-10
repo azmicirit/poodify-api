@@ -80,7 +80,7 @@ export default class CompanyApi extends Database {
       if (!city) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2001, message: `City Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 2001, message: `City Record not found!` }),
         };
       }
 
@@ -90,7 +90,7 @@ export default class CompanyApi extends Database {
       if (currentRecord) {
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
+          body: JSON.stringify({ success: false, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
         };
       }
 
@@ -183,7 +183,7 @@ export default class CompanyApi extends Database {
       if (!company) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 2003, message: `Company Record not found!` }),
         };
       }
 
@@ -191,7 +191,7 @@ export default class CompanyApi extends Database {
       if (currentRecord) {
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
+          body: JSON.stringify({ success: false, ecode: 2002, message: `"${parsedBody?.companyNumber}" company has already been recorded!"` }),
         };
       }
 
@@ -199,7 +199,7 @@ export default class CompanyApi extends Database {
       if (!city) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2001, message: `City Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 2001, message: `City Record not found!` }),
         };
       }
 
@@ -276,7 +276,7 @@ export default class CompanyApi extends Database {
       if (!company) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 2003, message: `Company Record not found!` }),
         };
       }
 
@@ -331,7 +331,7 @@ export default class CompanyApi extends Database {
       if (!company) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: true, ecode: 2003, message: `Company Record not found!` }),
+          body: JSON.stringify({ success: false, ecode: 2003, message: `Company Record not found!` }),
         };
       }
 

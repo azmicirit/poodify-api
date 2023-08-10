@@ -4,7 +4,7 @@ interface User {
   forenames: string;
   lastname: string;
   email: string;
-  active: boolean;
+  isActive: boolean;
   profilePhoto: {
     url?: string;
     thumbnail?: string;
@@ -27,7 +27,7 @@ export interface CheckAuthResult extends GenericResult {
     forenames: string;
     lastname: string;
     email: string;
-    active: boolean;
+    isActive: boolean;
     profilePhoto: {
       url?: string;
       thumbnail?: string;

@@ -152,7 +152,7 @@ companySchema.pre('updateOne', function (this: any, next: any): void {
 companySchema.static('isCompanyBelongToUser', async function (userId: string, companyId: string): Promise<ICompany | null> {
   try {
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
-    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());
+    const companyIds = [...new Set(companyUsers.map((companyUser: any) => companyUser.companyId?.toString()))];
     const company = await this.findOne({ $and: [{ _id: companyId }] });
     return companyIds.indexOf(companyId) > -1 && company ? company : null;
   } catch (error) {
@@ -166,7 +166,7 @@ companySchema.static('getCompaniesByUser', async function (userId: string, filte
     pageSize = pageSize || 10;
 
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
-    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
+    const companyIds = [...new Set(companyUsers.map((companyUser: any) => companyUser.companyId?.toString()))];
     const companies = await this.find(
       { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ _id: { $in: companyIds } }] }) },
       {},

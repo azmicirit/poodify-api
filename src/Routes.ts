@@ -84,8 +84,6 @@ export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, cont
   '/seed/up': {
     Func: async () => {
       try {
-        console.log('Heyyy lets up the process');
-
         await Up();
 
         return {

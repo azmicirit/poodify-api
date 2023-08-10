@@ -39,8 +39,9 @@ export interface CompanyListResult {
 }
 
 interface DriverModel extends Model<IDriver> {
-  getDriversByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
-  getDriverByUser(userId: string, driverId: string): Promise<IDriver | null>;
+  isDriverBelongToUser(userId: string, driverId: string): Promise<IDriver | null>;
+  getDriversByUser(userId: string, companyId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
+  getDriverByUser(userId: string, companyId: string, driverId: string): Promise<IDriver | null>;
 }
 
 const driverSchema = new Schema<IDriver, DriverModel>(
@@ -95,17 +96,28 @@ driverSchema.pre('updateOne', function (this: any, next: any): void {
   return next();
 });
 
-driverSchema.static('getDriversByUser', async function (userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null> {
+driverSchema.static('isDriverBelongToUser', async function (userId: string, driverId: string): Promise<IDriver | null> {
+  try {
+    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
+    const companyIds = [...new Set(companyUsers.map((companyUser: any) => companyUser.companyId))];
+    const companyDriver = await CompanyDriver.findOne({ companyId: { $in: companyIds }, driverId }).exec();
+    const driver = await this.findById(companyDriver?.driverId).populate('addresses.city').exec();
+
+    return driver;
+  } catch (error) {
+    return null;
+  }
+});
+
+driverSchema.static('getDriversByUser', async function (userId: string, companyId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null> {
   try {
     current = current || 0;
     pageSize = pageSize || 10;
 
-    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
-    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const companyDrivers = await CompanyDriver.find({ companyId: { $in: companyIds } }).select('driverId');
-    const driverIds = companyDrivers.map((companyDriver: any) => companyDriver.driverId);
+    const companyUser = await CompanyUser.findOne({ userId, companyId }).exec();
+    const companyDriverIds = (await CompanyDriver.find({ companyId: companyUser.companyId }).select('driverId')).map((item: any) => item.driverId);
     const drivers = await this.find(
-      { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ _id: { $in: driverIds } }] }) },
+      { ...FilterQueryBuilder.RefineFilterParser(filters, { $and: [{ _id: { $in: companyDriverIds } }] }) },
       {},
       { skip: (current - 1) * 10, limit: pageSize }
     )
@@ -114,18 +126,17 @@ driverSchema.static('getDriversByUser', async function (userId: string, filters?
 
     return {
       list: drivers,
-      size: driverIds?.length || 0,
+      size: companyDriverIds?.length || 0,
     };
   } catch (error) {
     return null;
   }
 });
 
-driverSchema.static('getDriverByUser', async function (userId: string, driverId: string): Promise<IDriver | null> {
+driverSchema.static('getDriverByUser', async function (userId: string, companyId: string, driverId: string): Promise<IDriver | null> {
   try {
-    const companyUsers = await CompanyUser.find({ userId }).select('companyId');
-    const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId);
-    const companyDriver = await CompanyDriver.findOne({ companyId: { $in: companyIds }, driverId }).exec();
+    const companyUser = await CompanyUser.findOne({ userId, companyId }).exec();
+    const companyDriver = await CompanyDriver.findOne({ companyId: companyUser.companyId, driverId }).exec();
     const driver = await this.findById(companyDriver?.driverId).populate('addresses.city').exec();
 
     return driver;

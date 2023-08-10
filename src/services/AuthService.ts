@@ -5,7 +5,7 @@ const functionName = 'poodify-auth-check-api';
 
 export enum PROCESS {
   CHECK_AUTH = 'CheckAuth',
-  NEW_USER = 'NewUser',
+  NEW_DRIVER = 'NewDriver',
 }
 
 export class AuthService {
