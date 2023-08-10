@@ -2,7 +2,7 @@ import * as url from 'url';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { PRIVATE_ROUTES, ROUTES } from './Routes';
 import { CustomAPIEvent } from './types/Generic';
-import { AuthService } from './services/AuthService';
+import { AuthService, PROCESS } from './services/AuthService';
 
 const env = process.env;
 
@@ -23,7 +23,7 @@ export const Handler = async (event: APIGatewayProxyEventV2, context: Context): 
     const customEvent: CustomAPIEvent = { ...event, parsedBody: event.body ? JSON.parse(event.body) : null };
 
     // CHECK AUTH
-    const authResult = await new AuthService().CheckAuth(event);
+    const authResult = await new AuthService().Send(PROCESS.CHECK_AUTH, event);
     if (!authResult?.success) {
       return {
         statusCode: authResult?.errorCode || 500,

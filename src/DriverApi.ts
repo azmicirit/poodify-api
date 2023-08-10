@@ -25,7 +25,7 @@ export default class DriverApi extends Database {
 
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, companies: result?.list || [], total: result?.size || 0 }),
+        body: JSON.stringify({ success: true, drivers: result?.list || [], total: result?.size || 0 }),
       };
     } catch (error) {
       console.error('DriverApi.GetList', error);
@@ -106,7 +106,7 @@ export default class DriverApi extends Database {
         forenames: parsedBody?.forenames,
         lastname: parsedBody?.lastname,
         email: parsedBody?.email,
-        active: parsedBody?.active || false,
+        isActive: parsedBody?.isActive || false,
         addresses: [
           {
             country: parsedBody?.addresses?.[0]?.country || null,
@@ -139,7 +139,7 @@ export default class DriverApi extends Database {
         await session.abortTransaction();
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 3004, message: `File Upload Error` }),
+          body: JSON.stringify({ success: false, ecode: 3004, message: `File Upload Error` }),
         };
       }
 
@@ -202,7 +202,7 @@ export default class DriverApi extends Database {
         await session.abortTransaction();
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 3004, message: `File Upload Error` }),
+          body: JSON.stringify({ success: false, ecode: 3004, message: `File Upload Error` }),
         };
       }
 
@@ -213,7 +213,7 @@ export default class DriverApi extends Database {
             forenames: parsedBody?.forenames,
             lastname: parsedBody?.lastname,
             email: parsedBody?.email,
-            active: parsedBody?.active || false,
+            isActive: parsedBody?.isActive || false,
             addresses: [
               {
                 country: parsedBody?.addresses?.[0]?.country || null,

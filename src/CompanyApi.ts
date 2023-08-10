@@ -141,7 +141,7 @@ export default class CompanyApi extends Database {
         await session.abortTransaction();
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 2004, message: `File Upload Error` }),
+          body: JSON.stringify({ success: false, ecode: 2004, message: `File Upload Error` }),
         };
       }
 
@@ -209,7 +209,7 @@ export default class CompanyApi extends Database {
       if (!uploadedLogo) {
         return {
           statusCode: 409,
-          body: JSON.stringify({ success: true, ecode: 2004, message: `File Upload Error` }),
+          body: JSON.stringify({ success: false, ecode: 2004, message: `File Upload Error` }),
         };
       }
 

@@ -3,6 +3,11 @@ import { CheckAuthResult, CustomAPIEvent } from '../types/Generic';
 
 const functionName = 'poodify-auth-check-api';
 
+export enum PROCESS {
+  CHECK_AUTH = 'CheckAuth',
+  NEW_USER = 'NewUser',
+}
+
 export class AuthService {
   private lambda;
 
@@ -10,9 +15,9 @@ export class AuthService {
     this.lambda = new Lambda({ region: process.env.AWS_REGION_DEFAULT, endpoint: process.env.OFFLINE === 'true' ? 'http://localhost:3100' : undefined });
   }
 
-  public async CheckAuth(event: CustomAPIEvent): Promise<CheckAuthResult | null> {
+  public async Send(process: PROCESS, event: CustomAPIEvent): Promise<CheckAuthResult | null> {
     try {
-      const result = await this.lambda.invoke({ InvocationType: 'RequestResponse', FunctionName: functionName, Payload: JSON.stringify(event) }).promise();
+      const result = await this.lambda.invoke({ InvocationType: 'RequestResponse', FunctionName: functionName, Payload: JSON.stringify({ process, ...event }) }).promise();
 
       if (result && result.StatusCode === 200) {
         return JSON.parse(JSON.parse(result.Payload.toString())?.body);

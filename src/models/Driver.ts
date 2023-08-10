@@ -22,7 +22,7 @@ export interface IDriver {
   lastname: string;
   email: string;
   password: string;
-  active: boolean;
+  isActive: boolean;
   addresses: IDriverAddress[];
   profilePhoto: {
     url: string;
@@ -48,7 +48,7 @@ const driverSchema = new Schema<IDriver, DriverModel>(
     forenames: { type: String, required: true, maxlength: 128 },
     lastname: { type: String, required: true, maxlength: 128 },
     email: { type: String, required: true, maxlength: 128, unique: true, index: true },
-    active: { type: Boolean, required: true, default: false, index: true },
+    isActive: { type: Boolean, required: true, default: false, index: true },
     addresses: [
       {
         type: {
