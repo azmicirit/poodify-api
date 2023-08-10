@@ -64,7 +64,7 @@ export interface CompanyListResult {
 }
 
 interface CompanyModel extends Model<ICompany> {
-  isCompanyBelongsToUser(userId: string, companyId: string): Promise<ICompany | null>;
+  isCompanyBelongToUser(userId: string, companyId: string): Promise<ICompany | null>;
   getCompaniesByUser(userId: string, filters?: any, current?: number, pageSize?: number): Promise<CompanyListResult | null>;
   getCompanyByUser(userId: string, companyId: string): Promise<ICompany | null>;
 }
@@ -149,7 +149,7 @@ companySchema.pre('updateOne', function (this: any, next: any): void {
   return next();
 });
 
-companySchema.static('isCompanyBelongsToUser', async function (userId: string, companyId: string): Promise<ICompany | null> {
+companySchema.static('isCompanyBelongToUser', async function (userId: string, companyId: string): Promise<ICompany | null> {
   try {
     const companyUsers = await CompanyUser.find({ userId }).select('companyId');
     const companyIds = companyUsers.map((companyUser: any) => companyUser.companyId?.toString());

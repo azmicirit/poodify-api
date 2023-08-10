@@ -179,7 +179,7 @@ export default class CompanyApi extends Database {
       const { user, parsedBody } = this.event;
 
       // VALIDATE COMPANY IS EXIST AND BELONGS TO USER
-      const company = await Company.isCompanyBelongsToUser(user?._id.toString(), parsedBody?._id.toString());
+      const company = await Company.isCompanyBelongToUser(user?._id.toString(), parsedBody?.companyId.toString());
       if (!company) {
         return {
           statusCode: 404,
@@ -270,9 +270,9 @@ export default class CompanyApi extends Database {
 
     try {
       const { user, parsedBody } = this.event;
-      const companyId = parsedBody?._id;
+      const companyId = parsedBody?.companyId;
 
-      const company = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
+      const company = await Company.isCompanyBelongToUser(user?._id.toString(), companyId);
       if (!company) {
         return {
           statusCode: 404,
@@ -325,9 +325,9 @@ export default class CompanyApi extends Database {
 
     try {
       const { user, parsedBody } = this.event;
-      const companyId = parsedBody?._id;
+      const companyId = parsedBody?.companyId;
 
-      const company = await Company.isCompanyBelongsToUser(user?._id.toString(), companyId);
+      const company = await Company.isCompanyBelongToUser(user?._id.toString(), companyId);
       if (!company) {
         return {
           statusCode: 404,
