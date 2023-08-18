@@ -165,7 +165,7 @@ export default class CompanyApi extends Database {
 
       return {
         statusCode: 404,
-        body: JSON.stringify({ success: false, error: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
+        body: JSON.stringify({ success: false, message: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
       };
     } finally {
       await session.endSession();

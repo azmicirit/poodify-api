@@ -26,8 +26,8 @@ export const Handler = async (event: APIGatewayProxyEventV2, context: Context): 
     const authResult = await new AuthService().Send(PROCESS.CHECK_AUTH, event);
     if (!authResult?.success) {
       return {
-        statusCode: authResult?.errorCode || 500,
-        body: JSON.stringify({ success: false, error: authResult?.error || 'Fatal Error' }),
+        statusCode: authResult?.ecode || 500,
+        body: JSON.stringify({ success: false, message:authResult?.ecode || 'Fatal Error' }),
       };
     }
 
@@ -43,7 +43,7 @@ export const Handler = async (event: APIGatewayProxyEventV2, context: Context): 
     console.error('index.Handler', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, error: process.env.OFFLINE.toString() === 'true' ? error?.toString() : 'Fatal Error' }),
+      body: JSON.stringify({ success: false, message:process.env.OFFLINE.toString() === 'true' ? error?.toString() : 'Fatal Error' }),
     };
   }
 };
@@ -54,7 +54,7 @@ export const PrivateHandler = async (event: APIGatewayProxyEventV2, context: Con
     if (env.PRIVATE_KEY !== event.headers['x-private-key']) {
       return {
         statusCode: 403,
-        body: JSON.stringify({ success: false, error: 'Forbidden' }),
+        body: JSON.stringify({ success: false, message:'Forbidden' }),
       };
     }
 
@@ -66,13 +66,13 @@ export const PrivateHandler = async (event: APIGatewayProxyEventV2, context: Con
       ? await route.Func(customEvent, context)
       : {
           statusCode: 404,
-          body: JSON.stringify({ success: false, error: 'Function Not Found' }),
+          body: JSON.stringify({ success: false, message:'Function Not Found' }),
         };
   } catch (error) {
     console.error('index.PrivateHandler', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, error: process.env.OFFLINE.toString() === 'true' ? error?.toString() : 'Fatal Error' }),
+      body: JSON.stringify({ success: false, message:process.env.OFFLINE.toString() === 'true' ? error?.toString() : 'Fatal Error' }),
     };
   }
 };

@@ -76,7 +76,7 @@ export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, cont
       } catch (error) {
         return {
           statusCode: 500,
-          body: JSON.stringify({ success: false, error: error }),
+          body: JSON.stringify({ success: false, message:error }),
         };
       }
     },
@@ -93,7 +93,7 @@ export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, cont
       } catch (error) {
         return {
           statusCode: 500,
-          body: JSON.stringify({ success: false, error: error }),
+          body: JSON.stringify({ success: false, message:error }),
         };
       }
     },
@@ -110,7 +110,7 @@ export const PRIVATE_ROUTES: { [k: string]: { Func: (event: CustomAPIEvent, cont
       } catch (error) {
         return {
           statusCode: 500,
-          body: JSON.stringify({ success: false, error: error }),
+          body: JSON.stringify({ success: false, message:error }),
         };
       }
     },

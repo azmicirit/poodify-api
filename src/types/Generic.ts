@@ -17,8 +17,8 @@ export interface CustomAPIEvent extends APIGatewayProxyEventV2 {
 
 export interface GenericResult {
   success: boolean;
-  error?: string;
-  errorCode?: number;
+  ecode?: number;
+  message?: string;
 }
 
 export interface CheckAuthResult extends GenericResult {

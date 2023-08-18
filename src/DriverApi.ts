@@ -177,8 +177,8 @@ export default class DriverApi extends Database {
         await session.abortTransaction();
 
         return {
-          statusCode: authResult?.errorCode || 500,
-          body: JSON.stringify({ success: false, error: authResult?.error || 'Fatal Error' }),
+          statusCode: authResult?.ecode || 500,
+          body: JSON.stringify({ success: false, message:authResult?.ecode || 'Fatal Error' }),
         };
       }
 
@@ -194,7 +194,7 @@ export default class DriverApi extends Database {
 
       return {
         statusCode: 404,
-        body: JSON.stringify({ success: false, error: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
+        body: JSON.stringify({ success: false, message:process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
       };
     } finally {
       await session.endSession();
@@ -289,8 +289,8 @@ export default class DriverApi extends Database {
         await session.abortTransaction();
 
         return {
-          statusCode: authResult?.errorCode || 500,
-          body: JSON.stringify({ success: false, error: authResult?.error || 'Fatal Error' }),
+          statusCode: authResult?.ecode || 500,
+          body: JSON.stringify({ success: false, message:authResult?.ecode || 'Fatal Error' }),
         };
       }
 
@@ -306,7 +306,7 @@ export default class DriverApi extends Database {
 
       return {
         statusCode: 404,
-        body: JSON.stringify({ success: false, error: process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
+        body: JSON.stringify({ success: false, message:process.env.DEBUG == 'true' ? error.toString() : 'Fatal Error' }),
       };
     } finally {
       await session.endSession();
